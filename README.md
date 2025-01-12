@@ -4,9 +4,7 @@
 
 A Material 3 YouTube Music client & local music player for Android
 
-[![Latest release](https://img.shields.io/github/v/release/DD3Boh/OuterTune?include_prereleases)](https://github.com/DD3Boh/OuterTune/releases)
-[![License](https://img.shields.io/github/license/DD3Boh/OuterTune)](https://www.gnu.org/licenses/gpl-3.0)
-[![Downloads](https://img.shields.io/github/downloads/DD3Boh/OuterTune/total)](https://github.com/DD3Boh/OuterTune/releases)
+
 
 [<img src="assets/badge_github.png" alt="Get it on GitHub" height="40">](https://github.com/DD3Boh/OuterTune/releases/latest)
 [<img src="assets/IzzyOnDroidButtonGreyBorder.svg" alt="Get it on IzzyOnDroid" height="40">](https://apt.izzysoft.de/fdroid/index/apk/com.dd3boh.outertune)
@@ -14,7 +12,7 @@ A Material 3 YouTube Music client & local music player for Android
 
 ## Features
 
-OuterTune is a supercharged fork of [InnerTune](https://github.com/z-huang/InnerTune), with advanced account synchronization, local media playback, multiple queues, and a new take on UI design.
+SimpleTube is a supercharged fork of [InnerTune](https://github.com/z-huang/InnerTune), with advanced account synchronization, local media playback, multiple queues, and a new take on UI design.
 
 - Play, search, and save all your songs, videos, albums, and playlists from YouTube Music
     - Song downloading for offline playback
