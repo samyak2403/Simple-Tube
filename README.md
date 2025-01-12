@@ -30,11 +30,29 @@ SimpleTube is a supercharged fork of [InnerTune](https://github.com/z-huang/Inne
 
 ## Screenshots
 
-<img src="./assets/main-interface.webp" width="600" alt="Main player interface" />
-<br/><br/>
-<img src="./assets/player.webp" width="600" alt="Player interface"/>
-<br/><br/>
-<img src="./assets/ytm-sync.webp" width="600" alt="Sync with YouTube Music"/>
+<table style="width: 100%; text-align: center; border-collapse: collapse;">
+  <tr>
+    <td><img src="assets/1.png" width="250px" /></td>
+    <td><img src="assets/2.png" width="250px" /></td>
+  </tr>
+  <tr>
+    <td><img src="assets/3.png" width="250px" /></td>
+    <td><img src="assets/4.png" width="250px" /></td>
+  </tr>
+  <tr>
+    <td><img src="assets/5.png" width="250px" /></td>
+    <td><img src="assets/6.png" width="250px" /></td>
+  </tr>
+  <tr>
+    <td><img src="assets/7.png" width="250px" /></td>
+    <td><img src="assets/8.png" width="250px" /></td>
+  </tr>
+  <tr>
+    <td><img src="assets/9.png" width="250px" /></td>
+    <td><img src="assets/10.png" width="250px" /></td>
+  </tr>
+</table>
+
 
 > [!WARNING]
 >
