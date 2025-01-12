@@ -1,4 +1,4 @@
-# OuterTune
+# Simple Tube
 
 <img src="./assets/outertune.webp" height="72">
 
@@ -61,12 +61,9 @@ recommend [Pano Scrobbler](https://play.google.com/store/apps/details?id=com.arn
 
 We are looking for contributors, translators, and maintainers! If you would like to help out, or just wish to build the app yourself, please see the [building and contribution notes](./CONTRIBUTING.md).
 
-## Donate
 
-If you like OuterTune, you're welcome to send a donation. Donations will support the development,
-including bug fixes and new features.
 
-<a href="https://paypal.me/DD3Boh"><img src="./assets/paypal.png" alt="PayPal" height="60" ></a>
+
 
 ## Attribution
 
