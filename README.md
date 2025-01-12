@@ -1,6 +1,6 @@
 # Simple Tube
 
-<img src="./assets/outertune.webp" height="72">
+<img src="./assets/SimpleTube.webp" height="72">
 
 A Material 3 YouTube Music client & local music player for Android
 
