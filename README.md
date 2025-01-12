@@ -1,4 +1,4 @@
-# OuterTune
+# Simple Tube
 
 <img src="./assets/outertune.webp" height="72">
 
