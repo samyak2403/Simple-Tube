@@ -290,7 +290,7 @@ fun SetupWizard(
                         )
                         Column(verticalArrangement = Arrangement.Center) {
                             Text(
-                                text = "Welcome to OuterTune",
+                                text = "Welcome to SimpleTube",
                                 style = MaterialTheme.typography.headlineLarge,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier

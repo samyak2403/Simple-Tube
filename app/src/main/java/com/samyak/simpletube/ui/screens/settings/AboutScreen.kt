@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorFilter.Companion.tint
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -63,13 +64,25 @@ fun AboutScreen(
     ) {
         Spacer(Modifier.height(4.dp))
 
+//        Image(
+//            contentDescription = null,
+//            modifier = Modifier
+//                .clip(CircleShape)
+//                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation))
+//                .clickable { }
+//        )
+
         Image(
+            painter = painterResource(R.drawable.simple_tube_one).apply {
+
+            },
             contentDescription = null,
             modifier = Modifier
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation))
                 .clickable { }
         )
+
 
         Row(
             verticalAlignment = Alignment.Top,
