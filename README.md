@@ -2,6 +2,9 @@
 
 <img src="./assets/SimpleTube.webp" height="72">
 
+![pv](https://pageview.vercel.app/?github_user=Simple-Tube)
+
+
 A Material 3 YouTube Music client & local music player for Android
 
 
