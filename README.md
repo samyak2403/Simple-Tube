@@ -12,6 +12,8 @@ A Material 3 YouTube Music client & local music player for Android
 <a href="https://github.com/samyak2403/Simple-Tube/raw/main/app/universal/release/app-universal-release.apk">
   <img src="https://github.com/user-attachments/assets/a0c5dcca-d0dc-477b-b864-98c13e12d15d" alt="Download Love Calculator APK" style="width: 300px; height: auto;">
 </a>
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">](https://apt.izzysoft.de/fdroid/index/apk/com.samyak.simpletube)
+
 
 ## Features
 
