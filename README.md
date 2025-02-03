@@ -31,11 +31,6 @@ SimpleTube is a supercharged fork of [InnerTune](https://github.com/z-huang/Inne
 - Audio normalization, tempo/pitch adjustment, and various other audio effects
 - Android Auto support
 
-## Credits
-
-[OuterTune](https://github.com/DD3Boh/OuterTune)
-
-
 ## Screenshots
 
 <table style="width: 100%; text-align: center; border-collapse: collapse;">
@@ -96,6 +91,9 @@ an awesome base for this fork, none of this would have been possible without it.
 
 [Musicolet](https://play.google.com/store/apps/details?id=in.krosbits.musicolet) for inspiration of a local music player experience done right.
 
+
+## Credits
+I want to give credit to [OuterTune](https://github.com/DD3Boh/OuterTune) for being an example of Jetpack Compose music player. It helped me a lot on my way to learn Compose and Android development.
 
 ## Disclaimer
 
