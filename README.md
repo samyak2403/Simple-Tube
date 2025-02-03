@@ -31,6 +31,11 @@ SimpleTube is a supercharged fork of [InnerTune](https://github.com/z-huang/Inne
 - Audio normalization, tempo/pitch adjustment, and various other audio effects
 - Android Auto support
 
+## Credits
+
+[OuterTune](https://github.com/DD3Boh/OuterTune)
+
+
 ## Screenshots
 
 <table style="width: 100%; text-align: center; border-collapse: collapse;">
@@ -100,7 +105,4 @@ way associated with YouTube, Google LLC or any of its affiliates and subsidiarie
 Any trademark, service mark, trade name, or other intellectual property rights used in this project
 are owned by the respective owners.
 
-## Credits
-
-[OuterTune](https://github.com/DD3Boh/OuterTune)
 
