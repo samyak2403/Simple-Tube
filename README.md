@@ -9,9 +9,9 @@ A Material 3 YouTube Music client & local music player for Android
 
 
 
-<a href="https://github.com/samyak2403/Simple-Tube/raw/main/app/universal/release/app-universal-release.apk">
-  <img src="https://github.com/user-attachments/assets/a0c5dcca-d0dc-477b-b864-98c13e12d15d" alt="Download Love Calculator APK" style="width: 300px; height: auto;">
-</a>
+[<img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/samyak2403/Simple-Tube/releases/latest)
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">](https://apt.izzysoft.de/fdroid/index/apk/com.samyak.simpletube)
+
 
 ## Features
 
@@ -92,6 +92,9 @@ an awesome base for this fork, none of this would have been possible without it.
 [Musicolet](https://play.google.com/store/apps/details?id=in.krosbits.musicolet) for inspiration of a local music player experience done right.
 
 
+## Credits
+I want to give credit to [OuterTune](https://github.com/DD3Boh/OuterTune) for being an example of Jetpack Compose music player. It helped me a lot on my way to learn Compose and Android development.
+
 ## Disclaimer
 
 This project and its contents are not affiliated with, funded, authorized, endorsed by, or in any
@@ -99,3 +102,5 @@ way associated with YouTube, Google LLC or any of its affiliates and subsidiarie
 
 Any trademark, service mark, trade name, or other intellectual property rights used in this project
 are owned by the respective owners.
+
+
