@@ -32,14 +32,14 @@ To make everyone's life easier, there are a set of guidelines that are to be fol
 
 ## Commiting guidelines
 - Prefix commits with tags, and provide descriptions if necessary. These are generally done in format:
-  `tag: commit_name`. [Example](https://github.com/DD3Boh/OuterTune/commit/798e8366227dd2cc38355224c733dbf7e8ffcee0)
+  `tag: commit_name`. [Example](https://github.com/samyak2403/Simple-Tube/commit/798e8366227dd2cc38355224c733dbf7e8ffcee0)
     - A list of tags commonly used is provided below
 - Commit descriptions are not required, but highly recommended
 - When porting/cherry-picking/stealing from other repositories or sources:
     - Maintain
-      authorship. [Example](https://github.com/DD3Boh/OuterTune/commit/b0dc59682190b41f0200e9df5174322acaa3d40d)
+      authorship. [Example](https://github.com/samyak2403/Simple-Tube/commit/b0dc59682190b41f0200e9df5174322acaa3d40d)
     - If this is not possible please provide the source in the commit
-      description. [Example](https://github.com/DD3Boh/OuterTune/pull/59/commits/e40325dd86ac2c30347cfd4f9e92bbf15a0d0c82)
+      description. [Example](https://github.com/samyak2403/Simple-Tube/pull/59/commits/e40325dd86ac2c30347cfd4f9e92bbf15a0d0c82)
 - Do not merge `dev` into your branch
     - Instead, please rebase over dev
 - Merge conflicts
@@ -48,7 +48,7 @@ To make everyone's life easier, there are a set of guidelines that are to be fol
 - If database schema changes are required, please state clearly if a version increment is required. Additional details
   are in the `Database schema changes` section
 - For multi-part commits where all parts are required for functionality, use
-  `[1/2], [2/2], etc`. [See example](https://github.com/DD3Boh/OuterTune/pull/59/commits)
+  `[1/2], [2/2], etc`. [See example](https://github.com/samyak2403/Simple-Tube/pull/59/commits)
 
 ### Tags
 
