@@ -31,10 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorFilter.Companion.tint
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -64,25 +61,14 @@ fun AboutScreen(
     ) {
         Spacer(Modifier.height(4.dp))
 
-//        Image(
-//            contentDescription = null,
-//            modifier = Modifier
-//                .clip(CircleShape)
-//                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation))
-//                .clickable { }
-//        )
-
         Image(
-            painter = painterResource(R.drawable.simple_tube_one).apply {
-
-            },
+            painter = painterResource(R.drawable.simple_tube_one),
             contentDescription = null,
             modifier = Modifier
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation))
                 .clickable { }
         )
-
 
         Row(
             verticalAlignment = Alignment.Top,
@@ -165,6 +151,12 @@ fun AboutScreen(
             color = MaterialTheme.colorScheme.secondary
         )
 
+        Text(
+            text = "Davide Garberi for OuterTune",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.secondary
+        )
+
         // debug info
         if (BuildConfig.DEBUG) {
             Spacer(Modifier.height(400.dp))
@@ -190,12 +182,6 @@ fun AboutScreen(
                 Build.PRODUCT,
                 Build.FINGERPRINT,
                 Build.VERSION.SECURITY_PATCH
-
-//                needs sdk 29 or 31
-//                Build.SKU ,
-//                Build.ODM_SKU ,
-//                Build.SOC_MODEL ,
-//                Build.SOC_MANUFACTURER ,
             )
 
             Column(
@@ -210,7 +196,6 @@ fun AboutScreen(
                 }
             }
         }
-
     }
 
     TopAppBar(
