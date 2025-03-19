@@ -13,7 +13,7 @@
       "attributes": [],
       "versionCode": 2,
       "versionName": "0.2.0",
-      "outputFile": "OuterTune-0.2.0-x86_64-release.apk"
+      "outputFile": "SimpleTune-0.2.0-x86_64-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/OuterTune-0.2.0-x86_64-release.dm"
+        "baselineProfiles/1/SimpleTune-0.2.0-x86_64-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/OuterTune-0.2.0-x86_64-release.dm"
+        "baselineProfiles/0/SimpleTune-0.2.0-x86_64-release.dm"
       ]
     }
   ],
