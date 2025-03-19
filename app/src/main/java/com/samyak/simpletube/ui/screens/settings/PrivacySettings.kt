@@ -10,7 +10,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,16 +30,14 @@ import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.PauseListenHistoryKey
+import com.samyak.simpletube.constants.PauseRemoteListenHistoryKey
 import com.samyak.simpletube.constants.PauseSearchHistoryKey
-import com.samyak.simpletube.constants.UseLoginForBrowse
 import com.samyak.simpletube.ui.component.DefaultDialog
 import com.samyak.simpletube.ui.component.IconButton
 import com.samyak.simpletube.ui.component.PreferenceEntry
-import com.samyak.simpletube.ui.component.PreferenceGroupTitle
 import com.samyak.simpletube.ui.component.SwitchPreference
 import com.samyak.simpletube.ui.utils.backToMain
 import com.samyak.simpletube.utils.rememberPreference
-import com.zionhuang.innertube.YouTube
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +46,18 @@ fun PrivacySettings(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val database = LocalDatabase.current
-    val (pauseListenHistory, onPauseListenHistoryChange) = rememberPreference(key = PauseListenHistoryKey, defaultValue = false)
-    val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(key = PauseSearchHistoryKey, defaultValue = false)
-    val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(key = UseLoginForBrowse, defaultValue = false)
+    val (pauseListenHistory, onPauseListenHistoryChange) = rememberPreference(
+        key = PauseListenHistoryKey,
+        defaultValue = false
+    )
+    val (pauseRemoteListenHistory, onPauseRemoteListenHistoryChange) = rememberPreference(
+        key = PauseRemoteListenHistoryKey,
+        defaultValue = false
+    )
+    val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(
+        key = PauseSearchHistoryKey,
+        defaultValue = false
+    )
 
     var showClearListenHistoryDialog by remember {
         mutableStateOf(false)
@@ -134,6 +140,13 @@ fun PrivacySettings(
             checked = pauseListenHistory,
             onCheckedChange = onPauseListenHistoryChange
         )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.pause_remote_listen_history)) },
+            icon = { Icon(Icons.Rounded.History, null) },
+            checked = pauseRemoteListenHistory,
+            onCheckedChange = onPauseRemoteListenHistoryChange,
+            isEnabled = !pauseListenHistory
+        )
         PreferenceEntry(
             title = { Text(stringResource(R.string.clear_listen_history)) },
             icon = { Icon(Icons.Rounded.ClearAll, null) },
@@ -149,21 +162,6 @@ fun PrivacySettings(
             title = { Text(stringResource(R.string.clear_search_history)) },
             icon = { Icon(Icons.Rounded.ClearAll, null) },
             onClick = { showClearSearchHistoryDialog = true }
-        )
-
-        PreferenceGroupTitle(
-            title = stringResource(R.string.account)
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.use_login_for_browse)) },
-            description = stringResource(R.string.use_login_for_browse_desc),
-            icon = { Icon(Icons.Rounded.Person, null) },
-            checked = useLoginForBrowse,
-            onCheckedChange = {
-                YouTube.useLoginForBrowse = it
-                onUseLoginForBrowseChange(it)
-            }
         )
     }
 

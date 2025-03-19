@@ -241,7 +241,21 @@ class SyncUtils @Inject constructor(
             Timber.tag(logTag).d("Artist subscriptions synchronization started")
 
             // Get remote artists (from library and uploads)
-            val remoteArtists = getRemoteData<ArtistItem>("FEmusic_library_corpus_track_artists", "FEmusic_library_privately_owned_artists")
+            val likedArtists = getRemoteData<ArtistItem>(
+                "FEmusic_library_corpus_artists",
+                "FEmusic_library_privately_owned_artists"
+            )
+            val trackArtists = getRemoteData<ArtistItem>(
+                "FEmusic_library_corpus_track_artists",
+                "FEmusic_library_privately_owned_artists"
+            )
+            val remoteArtists = mutableListOf<ArtistItem>().apply {
+                addAll(likedArtists)
+                addAll(trackArtists.filterNot {
+                    trackArtist -> likedArtists.any { it.id == trackArtist.id }
+                })
+            }
+
             if (!context.isInternetConnected()) {
                 return
             }
@@ -249,7 +263,7 @@ class SyncUtils @Inject constructor(
             // Get local artists
             val artistsToRemoveFromSubscriptions = database.artistsBookmarkedAsc().first()
                 .filterNot { it.artist.isLocal }
-                .filterNot { localArtist -> remoteArtists.any { it.id == localArtist.id } }
+                .filterNot { localArtist -> likedArtists.any { it.id == localArtist.id } }
 
             // Remove local artists from the database
             coroutineScope {
@@ -265,6 +279,8 @@ class SyncUtils @Inject constructor(
                 remoteArtists.forEach { remoteArtist ->
                     launch(Dispatchers.IO) {
                         val localArtist = database.artist(remoteArtist.id).firstOrNull()
+                        val isLikedArtist = likedArtists.contains(remoteArtist)
+
                         database.transaction {
                             if (localArtist == null) {
                                 insert(
@@ -273,10 +289,10 @@ class SyncUtils @Inject constructor(
                                         name = remoteArtist.title,
                                         thumbnailUrl = remoteArtist.thumbnail,
                                         channelId = remoteArtist.channelId,
-                                        bookmarkedAt = LocalDateTime.now()
+                                        bookmarkedAt = if (isLikedArtist) LocalDateTime.now() else null
                                     )
                                 )
-                            } else if (localArtist.artist.bookmarkedAt == null) {
+                            } else if (localArtist.artist.bookmarkedAt == null && isLikedArtist) {
                                 update(localArtist.artist.localToggleLike())
                             }
                         }
@@ -396,6 +412,20 @@ class SyncUtils @Inject constructor(
                         }
                         playlistSongMaps.forEach { insert(it) }
                     }
+                }
+            }
+        }
+    }
+
+    suspend fun syncRecentActivity() {
+        YouTube.libraryRecentActivity().onSuccess { page ->
+            val recentActivity = page.items.take(9).drop(1)
+
+            coroutineScope {
+                launch(Dispatchers.IO) {
+                    database.clearRecentActivity()
+
+                    recentActivity.reversed().forEach { database.insertRecentActivityItem(it) }
                 }
             }
         }

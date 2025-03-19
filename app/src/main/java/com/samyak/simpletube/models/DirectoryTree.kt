@@ -1,5 +1,7 @@
 package com.samyak.simpletube.models
 
+import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.util.fastForEach
 import com.samyak.simpletube.constants.SongSortType
 import com.samyak.simpletube.db.entities.Song
 import com.samyak.simpletube.ui.utils.SCANNER_DEBUG
@@ -75,14 +77,7 @@ class DirectoryTree(path: String) {
         val subdirPath = tmpPath.substringBefore('/')
 
         // create subdirs if they do not exist, then insert
-        var existingSubdir: DirectoryTree? = null
-        subdirs.forEach { subdir ->
-            if (subdir.currentDir == subdirPath) {
-                existingSubdir = subdir
-                return@forEach
-            }
-        }
-
+        var existingSubdir: DirectoryTree? = subdirs.fastFirstOrNull { it.currentDir == subdirPath }
         if (existingSubdir == null) {
             val tree = DirectoryTree(subdirPath)
             tree.parent = "$parent/$currentDir"
@@ -90,7 +85,7 @@ class DirectoryTree(path: String) {
             subdirs.add(tree)
 
         } else {
-            existingSubdir!!.insert(tmpPath.substringAfter('/'), song)
+            existingSubdir.insert(tmpPath.substringAfter('/'), song)
         }
     }
 
@@ -139,11 +134,7 @@ class DirectoryTree(path: String) {
         }
 
         // explore the subdirectory if it exists in
-        if (existingSubdir == null) {
-            return null
-        } else {
-            return existingSubdir!!.getSong(tmpPath.substringAfter('/'))
-        }
+        return existingSubdir?.getSong(tmpPath.substringAfter('/'))
     }
 
 
@@ -220,11 +211,11 @@ class DirectoryTree(path: String) {
         var emulated: DirectoryTree? = null
         var zero: DirectoryTree? = null
 
-        subdirs.forEach { subdir ->
+        subdirs.fastForEach { subdir ->
             if (subdir.currentDir == "emulated") {
                 emulated = subdir
 
-                subdir.subdirs.forEach {
+                subdir.subdirs.fastForEach {
                     if (it.currentDir == "0") {
                         zero = it
                     }
@@ -234,9 +225,9 @@ class DirectoryTree(path: String) {
 
         // replace the emulated/0 path with "Internal"
         if (emulated != null && zero != null) {
-            val newInternalStorage = DirectoryTree("Internal", zero!!.subdirs, zero!!.files)
-            subdirs = ArrayList(subdirs.filterNot { it.currentDir == "emulated"})
-           subdirs.add(newInternalStorage)
+            val newInternalStorage = DirectoryTree("Internal", zero.subdirs, zero.files)
+            subdirs = ArrayList(subdirs.filterNot { it.currentDir == "emulated" })
+            subdirs.add(newInternalStorage)
         }
 
         return this
@@ -265,11 +256,11 @@ class DirectoryTree(path: String) {
      * @param result
      */
     private fun getSubdirsRecursive(it: DirectoryTree, result: ArrayList<DirectoryTree>) {
-        if (it.files.size > 0) {
+        if (it.files.isNotEmpty()) {
             result.add(DirectoryTree(it.currentDir, it.files))
         }
 
-        if (it.subdirs.size > 0) {
+        if (it.subdirs.isNotEmpty()) {
             it.subdirs.forEach { getSubdirsRecursive(it, result) }
         }
     }

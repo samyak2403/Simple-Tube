@@ -84,7 +84,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalDownloadUtil
-import com.samyak.simpletube.LocalIsNetworkConnected
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
@@ -98,13 +97,12 @@ import com.samyak.simpletube.constants.ThumbnailCornerRadius
 import com.samyak.simpletube.db.entities.Playlist
 import com.samyak.simpletube.db.entities.PlaylistSong
 import com.samyak.simpletube.db.entities.PlaylistSongMap
-import com.samyak.simpletube.extensions.getAvailableSongs
 import com.samyak.simpletube.extensions.move
 import com.samyak.simpletube.extensions.toMediaItem
 import com.samyak.simpletube.models.toMediaMetadata
 import com.samyak.simpletube.playback.ExoDownloadService
 import com.samyak.simpletube.playback.queues.ListQueue
-import com.samyak.simpletube.ui.component.AsyncLocalImage
+import com.samyak.simpletube.ui.component.AsyncImageLocal
 import com.samyak.simpletube.ui.component.AutoResizeText
 import com.samyak.simpletube.ui.component.DefaultDialog
 import com.samyak.simpletube.ui.component.EmptyPlaceholder
@@ -116,8 +114,8 @@ import com.samyak.simpletube.ui.component.SongListItem
 import com.samyak.simpletube.ui.component.SortHeader
 import com.samyak.simpletube.ui.component.TextFieldDialog
 import com.samyak.simpletube.ui.utils.backToMain
-import com.samyak.simpletube.ui.utils.getLocalThumbnail
 import com.samyak.simpletube.ui.utils.getNSongsString
+import com.samyak.simpletube.ui.utils.imageCache
 import com.samyak.simpletube.utils.makeTimeString
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
@@ -142,7 +140,6 @@ fun LocalPlaylistScreen(
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isNetworkConnected = LocalIsNetworkConnected.current
 
     val playlist by viewModel.playlist.collectAsState()
 
@@ -170,7 +167,7 @@ fun LocalPlaylistScreen(
         BackHandler(onBack = onExitSelectionMode)
     }
 
-    val editable: Boolean = playlist?.playlist?.isEditable == true
+    val editable: Boolean = playlist?.playlist?.isLocal == true || playlist?.playlist?.isEditable == true
 
     LaunchedEffect(songs) {
         mutableSongs.apply {
@@ -302,39 +299,11 @@ fun LocalPlaylistScreen(
         scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
     ) { from, to ->
         if (to.index >= headerItems && from.index >= headerItems) {
-            val playlistSongMap = database.songMapsToPlaylist(viewModel.playlistId, 0)
-
-            var fromIndex = from.index - headerItems
-            val toIndex = to.index - headerItems
-
-            var successorIndex = if (fromIndex > toIndex) toIndex else toIndex + 1
-
-            /*
-            * Because of how YouTube Music handles playlist changes, you necessarily need to
-            * have the SetVideoId of the successor when trying to move a song inside of a
-            * playlist.
-            * For this reason, if we are trying to move a song to the last element of a playlist,
-            * we need to first move it as penultimate and then move the last element before it.
-            */
-            if (successorIndex >= playlistSongMap.size) {
-                playlistSongMap[fromIndex].setVideoId?.let { setVideoId ->
-                    playlistSongMap[toIndex].setVideoId?.let { successorSetVideoId ->
-                        viewModel.playlist.first()?.playlist?.browseId?.let { browseId ->
-                            YouTube.moveSongPlaylist(browseId, setVideoId, successorSetVideoId)
-                        }
-                    }
-                }
-
-                successorIndex = fromIndex
-                fromIndex = toIndex
-            }
-
-            playlistSongMap[fromIndex].setVideoId?.let { setVideoId ->
-                playlistSongMap[successorIndex].setVideoId?.let { successorSetVideoId ->
-                    viewModel.playlist.first()?.playlist?.browseId?.let { browseId ->
-                        YouTube.moveSongPlaylist(browseId, setVideoId, successorSetVideoId)
-                    }
-                }
+            val currentDragInfo = dragInfo
+            dragInfo = if (currentDragInfo == null) {
+                (from.index - headerItems) to (to.index - headerItems)
+            } else {
+                currentDragInfo.first to (to.index - headerItems)
             }
 
             mutableSongs.move(from.index - headerItems, to.index - headerItems)
@@ -346,6 +315,46 @@ fun LocalPlaylistScreen(
             dragInfo?.let { (from, to) ->
                 database.transaction {
                     move(viewModel.playlistId, from, to)
+                }
+                if (viewModel.playlist.first()?.playlist?.isLocal == false) {
+                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                        val from = from
+                        val to = to
+                        val playlistSongMap = database.songMapsToPlaylist(viewModel.playlistId, 0)
+
+                        var fromIndex = from //- headerItems
+                        val toIndex = to //- headerItems
+
+                        var successorIndex = if (fromIndex > toIndex) toIndex else toIndex + 1
+
+                        /*
+                        * Because of how YouTube Music handles playlist changes, you necessarily need to
+                        * have the SetVideoId of the successor when trying to move a song inside of a
+                        * playlist.
+                        * For this reason, if we are trying to move a song to the last element of a playlist,
+                        * we need to first move it as penultimate and then move the last element before it.
+                        */
+                        if (successorIndex >= playlistSongMap.size) {
+                            playlistSongMap[fromIndex].setVideoId?.let { setVideoId ->
+                                playlistSongMap[toIndex].setVideoId?.let { successorSetVideoId ->
+                                    viewModel.playlist.first()?.playlist?.browseId?.let { browseId ->
+                                        YouTube.moveSongPlaylist(browseId, setVideoId, successorSetVideoId)
+                                    }
+                                }
+                            }
+
+                            successorIndex = fromIndex
+                            fromIndex = toIndex
+                        }
+
+                        playlistSongMap[fromIndex].setVideoId?.let { setVideoId ->
+                            playlistSongMap[successorIndex].setVideoId?.let { successorSetVideoId ->
+                                viewModel.playlist.first()?.playlist?.browseId?.let { browseId ->
+                                    YouTube.moveSongPlaylist(browseId, setVideoId, successorSetVideoId)
+                                }
+                            }
+                        }
+                    }
                 }
                 dragInfo = null
             }
@@ -403,10 +412,10 @@ fun LocalPlaylistScreen(
                                     selectedItems = selection.mapNotNull { id ->
                                         songs.find { it.song.id == id }?.song
                                     }.map { it.toMediaMetadata() },
-                                    totalItemCount = songs.map { it.song }.getAvailableSongs(isNetworkConnected).size,
+                                    totalItemCount = songs.map { it.song }.size,
                                     onSelectAll = {
                                         selection.clear()
-                                        selection.addAll(songs.map { it.song }.getAvailableSongs(isNetworkConnected).map { it.song.id })
+                                        selection.addAll(songs.map { it.song }.map { it.song.id })
                                     },
                                     onDeselectAll = { selection.clear() },
                                     menuState = menuState,
@@ -481,7 +490,9 @@ fun LocalPlaylistScreen(
                         inSelectMode = inSelectMode,
                         isSelected = selection.contains(song.song.id),
                         navController = navController,
-                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background),
                         playlistSong = song,
                         playlistBrowseId = playlist?.id,
                     )
@@ -515,7 +526,6 @@ fun LocalPlaylistScreen(
 }
 
 
-
 @Composable
 fun LocalPlaylistHeader(
     playlist: Playlist,
@@ -528,17 +538,10 @@ fun LocalPlaylistHeader(
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val isNetworkConnected = LocalIsNetworkConnected.current
     val scope = rememberCoroutineScope()
 
     val playlistLength = remember(songs) {
         songs.fastSumBy { it.song.song.duration }
-    }
-
-    val songsAvailable = {
-        songs.filter { it.song.song.isAvailableOffline() || isNetworkConnected }
-            .map { it.song.toMediaMetadata() }
-            .toList()
     }
 
     val downloadUtil = LocalDownloadUtil.current
@@ -573,8 +576,8 @@ fun LocalPlaylistHeader(
         ) {
             if (playlist.thumbnails.size == 1) {
                 if (playlist.thumbnails[0].startsWith("/storage")) {
-                    AsyncLocalImage(
-                        image = { getLocalThumbnail(playlist.thumbnails[0], true) },
+                    AsyncImageLocal(
+                        image = { imageCache.getLocalThumbnail(playlist.thumbnails[0], true) },
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -604,8 +607,8 @@ fun LocalPlaylistHeader(
                         Alignment.BottomEnd
                     ).fastForEachIndexed { index, alignment ->
                         if (playlist.thumbnails.getOrNull(index)?.startsWith("/storage") == true) {
-                            AsyncLocalImage(
-                                image = { getLocalThumbnail(playlist.thumbnails[index], true) },
+                            AsyncImageLocal(
+                                image = { imageCache.getLocalThumbnail(playlist.thumbnails[index], true) },
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
@@ -673,10 +676,11 @@ fun LocalPlaylistHeader(
 
                     if (playlist.playlist.browseId != null) {
                         IconButton(
-                            enabled = isNetworkConnected,
                             onClick = {
                                 scope.launch(Dispatchers.IO) {
-                                    val playlistPage = YouTube.playlist(playlist.playlist.browseId).completed().getOrNull() ?: return@launch
+                                    val playlistPage =
+                                        YouTube.playlist(playlist.playlist.browseId).completed().getOrNull()
+                                            ?: return@launch
                                     database.transaction {
                                         clearPlaylist(playlist.id)
                                         playlistPage.songs
@@ -738,10 +742,11 @@ fun LocalPlaylistHeader(
                             IconButton(
                                 onClick = {
                                     songs.forEach { song ->
-                                        val downloadRequest = DownloadRequest.Builder(song.song.id, song.song.id.toUri())
-                                            .setCustomCacheKey(song.song.id)
-                                            .setData(song.song.song.title.toByteArray())
-                                            .build()
+                                        val downloadRequest =
+                                            DownloadRequest.Builder(song.song.id, song.song.id.toUri())
+                                                .setCustomCacheKey(song.song.id)
+                                                .setData(song.song.song.title.toByteArray())
+                                                .build()
                                         DownloadService.sendAddDownload(
                                             context,
                                             ExoDownloadService::class.java,
@@ -781,7 +786,7 @@ fun LocalPlaylistHeader(
                     playerConnection.playQueue(
                         ListQueue(
                             title = playlist.playlist.name,
-                            items = songsAvailable()
+                            items = songs.map { it.song.toMediaMetadata() }.toList()
                         )
                     )
                 },
@@ -802,7 +807,8 @@ fun LocalPlaylistHeader(
                     playerConnection.playQueue(
                         ListQueue(
                             title = playlist.playlist.name,
-                            items = songsAvailable().shuffled()
+                            items = songs.map { it.song.toMediaMetadata() },
+                            startShuffled = true,
                         )
                     )
                 },

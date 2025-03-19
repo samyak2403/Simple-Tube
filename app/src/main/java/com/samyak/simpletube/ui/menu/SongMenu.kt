@@ -44,7 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -73,6 +73,7 @@ import com.samyak.simpletube.models.toMediaMetadata
 import com.samyak.simpletube.playback.ExoDownloadService
 import com.samyak.simpletube.playback.PlayerConnection.Companion.queueBoard
 import com.samyak.simpletube.playback.queues.YouTubeQueue
+import com.samyak.simpletube.ui.component.AsyncImageLocal
 import com.samyak.simpletube.ui.component.DetailsDialog
 import com.samyak.simpletube.ui.component.DownloadGridMenu
 import com.samyak.simpletube.ui.component.GridMenu
@@ -80,6 +81,7 @@ import com.samyak.simpletube.ui.component.GridMenuItem
 import com.samyak.simpletube.ui.component.ListDialog
 import com.samyak.simpletube.ui.component.ListItem
 import com.samyak.simpletube.ui.component.TextFieldDialog
+import com.samyak.simpletube.ui.utils.imageCache
 import com.samyak.simpletube.utils.joinByBullet
 import com.samyak.simpletube.utils.makeTimeString
 import com.zionhuang.innertube.YouTube
@@ -98,7 +100,7 @@ fun SongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
 
     val playerConnection = LocalPlayerConnection.current ?: return
     val songState = database.song(originalSong.id).collectAsState(initial = originalSong)
@@ -238,11 +240,20 @@ fun SongMenu(
             makeTimeString(song.song.duration * 1000L)
         ),
         thumbnailContent = {
-            AsyncImage(
-                model = if (song.song.isLocal) song.song.localPath else song.song.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.size(ListThumbnailSize).clip(RoundedCornerShape(ThumbnailCornerRadius))
-            )
+            if (song.song.isLocal) {
+                AsyncImageLocal(
+                    image = { imageCache.getLocalThumbnail(song.song.localPath, true) },
+                    contentDescription = null,
+                    modifier = Modifier.size(ListThumbnailSize).clip(RoundedCornerShape(ThumbnailCornerRadius))
+                )
+            }
+            else {
+                AsyncImage(
+                    model = song.song.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(ListThumbnailSize).clip(RoundedCornerShape(ThumbnailCornerRadius))
+                )
+            }
         },
         trailingContent = {
             IconButton(
@@ -277,7 +288,7 @@ fun SongMenu(
                 title = R.string.start_radio
             ) {
                 onDismiss()
-                playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+                playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()), isRadio = true)
             }
         GridMenuItem(
             icon = Icons.AutoMirrored.Rounded.PlaylistPlay,

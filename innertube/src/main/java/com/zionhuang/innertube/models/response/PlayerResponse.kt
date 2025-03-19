@@ -6,7 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * PlayerResponse with [com.zionhuang.innertube.models.YouTubeClient.ANDROID_MUSIC] client
+ * PlayerResponse with [com.zionhuang.innertube.models.YouTubeClient.WEB_REMIX] client
  */
 @Serializable
 data class PlayerResponse(
@@ -60,6 +60,7 @@ data class PlayerResponse(
             val audioChannels: Int?,
             val loudnessDb: Double?,
             val lastModified: Long?,
+            val signatureCipher: String?,
         ) {
             val isAudio: Boolean
                 get() = width == null

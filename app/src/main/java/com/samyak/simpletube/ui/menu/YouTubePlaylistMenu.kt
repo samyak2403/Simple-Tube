@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlaylistRemove
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shuffle
@@ -191,6 +192,44 @@ fun YouTubePlaylistMenu(
         )
     }
 
+    var showDeletePlaylistDialog by remember {
+        mutableStateOf(false)
+    }
+
+    if (showDeletePlaylistDialog) {
+        DefaultDialog(
+            onDismiss = { showDeletePlaylistDialog = false },
+            content = {
+                Text(
+                    text = stringResource(R.string.delete_playlist_confirm, playlist.title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+            },
+            buttons = {
+                TextButton(
+                    onClick = {
+                        showDeletePlaylistDialog = false
+                    }
+                ) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+
+                TextButton(
+                    onClick = {
+                        showDeletePlaylistDialog = false
+                        onDismiss()
+                        database.transaction {
+                            deletePlaylistById(playlist.id)
+                        }
+                    }
+                ) {
+                    Text(text = stringResource(android.R.string.ok))
+                }
+            }
+        )
+    }
+
     YouTubeListItem(
         item = playlist,
         trailingContent = {
@@ -282,7 +321,8 @@ fun YouTubePlaylistMenu(
                     ListQueue(
                         playlistId = playlist.playEndpoint!!.playlistId,
                         title = playlist.title,
-                        items = songs.map { it.toMediaMetadata() }.shuffled(),
+                        items = songs.map { it.toMediaMetadata() },
+                        startShuffled = true,
                     )
                 )
                 onDismiss()
@@ -295,7 +335,7 @@ fun YouTubePlaylistMenu(
                 title = R.string.start_radio
             ) {
                 println("Radio: ${radioEndpoint.playlistId}, ${radioEndpoint.params}")
-                playerConnection.playQueue(YouTubeQueue(radioEndpoint))
+                playerConnection.playQueue(YouTubeQueue(radioEndpoint), isRadio = true)
                 onDismiss()
             }
         }
@@ -354,6 +394,13 @@ fun YouTubePlaylistMenu(
             }
             context.startActivity(Intent.createChooser(intent, null))
             onDismiss()
+        }
+
+        GridMenuItem(
+            icon = Icons.Rounded.PlaylistRemove,
+            title = R.string.delete
+        ) {
+            showDeletePlaylistDialog = true
         }
     }
 }

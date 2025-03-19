@@ -5,6 +5,7 @@ import com.samyak.simpletube.models.MediaMetadata
 interface Queue {
     val preloadItem: MediaMetadata?
     val playlistId: String?
+    val startShuffled: Boolean
     suspend fun getInitialStatus(): Status
     fun hasNextPage(): Boolean
     suspend fun nextPage(): List<MediaMetadata>

@@ -36,7 +36,7 @@ fun CreatePlaylistDialog(
     onDismiss: () -> Unit,
     initialTextFieldValue: String? = null,
     allowSyncing: Boolean = true,
-){
+) {
     val context = LocalContext.current
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
@@ -45,12 +45,12 @@ fun CreatePlaylistDialog(
     TextFieldDialog(
         icon = { Icon(imageVector = Icons.Rounded.Add, contentDescription = null) },
         title = { Text(text = stringResource(R.string.create_playlist)) },
-        initialTextFieldValue = TextFieldValue(initialTextFieldValue?: ""),
+        initialTextFieldValue = TextFieldValue(initialTextFieldValue ?: ""),
         onDismiss = onDismiss,
         onDone = { playlistName ->
             coroutineScope.launch(Dispatchers.IO) {
                 val browseId = if (syncedPlaylist)
-                    YouTube.createPlaylist(playlistName).getOrNull()
+                    YouTube.createPlaylist(playlistName)
                 else null
 
                 database.query {
@@ -59,7 +59,7 @@ fun CreatePlaylistDialog(
                             name = playlistName,
                             browseId = browseId,
                             bookmarkedAt = LocalDateTime.now(),
-                            isEditable = !syncedPlaylist,
+                            isEditable = true,
                             isLocal = !syncedPlaylist // && check that all songs are non-local
                         )
                     )
@@ -67,18 +67,18 @@ fun CreatePlaylistDialog(
             }
         },
         extraContent = {
-            if (allowSyncing && context.isUserLoggedIn()){
+            if (allowSyncing && context.isUserLoggedIn()) {
                 Row(
                     modifier = Modifier.padding(vertical = 16.dp, horizontal = 40.dp)
                 ) {
                     Column() {
                         Text(
-                            text = "Sync Playlist",
+                            text = stringResource(R.string.create_sync_playlist),
                             style = MaterialTheme.typography.titleLarge,
                         )
 
                         Text(
-                            text = "Note: This allows for syncing with YouTube Music. This is NOT changeable later. You cannot add local songs to synced playlists.",
+                            text = stringResource(R.string.create_sync_playlist_description),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.fillMaxWidth(0.7f)
                         )

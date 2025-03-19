@@ -7,7 +7,7 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
 class ActivityLauncherHelper(
-    private val activity: ComponentActivity
+    activity: ComponentActivity
 ) {
     private var consumers = ArrayMap<String, ((ActivityResult) -> Unit)?>()
 

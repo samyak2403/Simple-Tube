@@ -68,6 +68,7 @@ interface PlaylistsDao {
             LEFT JOIN playlist_song_map psm ON p.id = psm.playlistId
             LEFT JOIN song s ON psm.songId = s.id
         WHERE name LIKE '%' || :query || '%'
+            AND s.inLibrary IS NOT NULL
         GROUP BY p.id
         LIMIT :previewSize
     """)
@@ -201,6 +202,9 @@ interface PlaylistsDao {
     // region Deletes
     @Delete
     fun delete(playlist: PlaylistEntity)
+
+    @Query("DELETE FROM playlist WHERE browseId = :browseId")
+    fun deletePlaylistById(browseId: String)
 
     @Query("DELETE FROM playlist_song_map WHERE playlistId = :playlistId")
     fun clearPlaylist(playlistId: String)

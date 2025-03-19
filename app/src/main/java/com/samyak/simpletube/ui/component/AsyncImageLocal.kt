@@ -25,14 +25,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
 
 const val MAX_IMAGE_JOBS = 4
+
 @OptIn(DelicateCoroutinesApi::class)
-val imageSession = newFixedThreadPoolContext(MAX_IMAGE_JOBS , "ImageExtractor")
+val imageSession = newFixedThreadPoolContext(MAX_IMAGE_JOBS, "ImageExtractor")
 
 /**
  * Non-blocking image
  */
 @Composable
-fun AsyncLocalImage(
+fun AsyncImageLocal(
     image: () -> Bitmap?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,

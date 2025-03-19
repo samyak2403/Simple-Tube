@@ -1,6 +1,7 @@
 package com.samyak.simpletube.ui.screens.settings
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -30,8 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
-import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
+import com.samyak.simpletube.App.Companion.forgetAccount
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.AccountChannelHandleKey
@@ -40,6 +41,7 @@ import com.samyak.simpletube.constants.AccountNameKey
 import com.samyak.simpletube.constants.ContentCountryKey
 import com.samyak.simpletube.constants.ContentLanguageKey
 import com.samyak.simpletube.constants.CountryCodeToName
+import com.samyak.simpletube.constants.DataSyncIdKey
 import com.samyak.simpletube.constants.InnerTubeCookieKey
 import com.samyak.simpletube.constants.LanguageCodeToName
 import com.samyak.simpletube.constants.LikedAutoDownloadKey
@@ -48,6 +50,7 @@ import com.samyak.simpletube.constants.ProxyEnabledKey
 import com.samyak.simpletube.constants.ProxyTypeKey
 import com.samyak.simpletube.constants.ProxyUrlKey
 import com.samyak.simpletube.constants.SYSTEM_DEFAULT
+import com.samyak.simpletube.constants.UseLoginForBrowse
 import com.samyak.simpletube.constants.VisitorDataKey
 import com.samyak.simpletube.constants.YtmSyncKey
 import com.samyak.simpletube.ui.component.EditTextPreference
@@ -59,11 +62,10 @@ import com.samyak.simpletube.ui.component.PreferenceGroupTitle
 import com.samyak.simpletube.ui.component.SwitchPreference
 import com.samyak.simpletube.ui.component.TextFieldDialog
 import com.samyak.simpletube.ui.utils.backToMain
-import com.samyak.simpletube.utils.dataStore
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
+import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.utils.parseCookieString
-import kotlinx.coroutines.runBlocking
 import java.net.Proxy
 
 @SuppressLint("PrivateResource")
@@ -75,13 +77,16 @@ fun ContentSettings(
 ) {
     val context = LocalContext.current
 
-    val accountName by rememberPreference(AccountNameKey, "")
-    val accountEmail by rememberPreference(AccountEmailKey, "")
-    val accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
+    val (accountName, onAccountNameChange) = rememberPreference(AccountNameKey, "")
+    val (accountEmail, onAccountEmailChange) = rememberPreference(AccountEmailKey, "")
+    val (accountChannelHandle, onAccountChannelHandleChange) = rememberPreference(AccountChannelHandleKey, "")
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
+    val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
+    val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
+
     val (ytmSync, onYtmSyncChange) = rememberPreference(YtmSyncKey, defaultValue = true)
     val (likedAutoDownload, onLikedAutoDownload) = rememberEnumPreference(LikedAutoDownloadKey, LikedAutodownloadMode.OFF)
     val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
@@ -91,6 +96,7 @@ fun ContentSettings(
     val (proxyType, onProxyTypeChange) = rememberEnumPreference(key = ProxyTypeKey, defaultValue = Proxy.Type.HTTP)
     val (proxyUrl, onProxyUrlChange) = rememberPreference(key = ProxyUrlKey, defaultValue = "host:port")
 
+    val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(UseLoginForBrowse, true)
 
     // temp vars
     var showToken: Boolean by remember {
@@ -107,7 +113,7 @@ fun ContentSettings(
             .verticalScroll(rememberScrollState())
     ) {
         PreferenceGroupTitle(
-            title = "ACCOUNT"
+            title = stringResource(R.string.account)
         )
         PreferenceEntry(
             title = { Text(if (isLoggedIn) accountName else stringResource(R.string.login)) },
@@ -123,22 +129,34 @@ fun ContentSettings(
                 title = { Text(stringResource(R.string.logout)) },
                 icon = { Icon(Icons.AutoMirrored.Rounded.Logout, null) },
                 onClick = {
-                    onInnerTubeCookieChange("")
-                    runBlocking {
-                        context.dataStore.edit { settings ->
-                            settings.remove(InnerTubeCookieKey)
-                            settings.remove(VisitorDataKey)
-                        }
-                    }
+                    forgetAccount(context)
                 }
             )
         }
 
         if (showTokenEditor) {
+            val text =
+                "***INNERTUBE COOKIE*** =${innerTubeCookie}\n\n***VISITOR DATA*** =${visitorData}\n\n***DATASYNC ID*** =${dataSyncId}\n\n***ACCOUNT NAME*** =${accountName}\n\n***ACCOUNT EMAIL*** =${accountEmail}\n\n***ACCOUNT CHANNEL HANDLE*** =${accountChannelHandle}"
             TextFieldDialog(
                 modifier = Modifier,
-                initialTextFieldValue = TextFieldValue(innerTubeCookie),
-                onDone = { onInnerTubeCookieChange(it) },
+                initialTextFieldValue = TextFieldValue(text),
+                onDone = { data ->
+                   data.split("\n").forEach {
+                        if (it.startsWith("***INNERTUBE COOKIE*** =")) {
+                            onInnerTubeCookieChange(it.substringAfter("***INNERTUBE COOKIE*** ="))
+                        } else if (it.startsWith("***VISITOR DATA*** =")) {
+                            onVisitorDataChange(it.substringAfter("***VISITOR DATA*** ="))
+                        } else if (it.startsWith("***DATASYNC ID*** =")) {
+                            onDataSyncIdChange(it.substringAfter("***DATASYNC ID*** ="))
+                        } else if (it.startsWith("***ACCOUNT NAME*** =")) {
+                            onAccountNameChange(it.substringAfter("***ACCOUNT NAME*** ="))
+                        } else if (it.startsWith("***ACCOUNT EMAIL*** =")) {
+                            onAccountEmailChange(it.substringAfter("***ACCOUNT EMAIL*** ="))
+                        } else if (it.startsWith("***ACCOUNT CHANNEL HANDLE*** =")) {
+                            onAccountChannelHandleChange(it.substringAfter("***ACCOUNT CHANNEL HANDLE*** ="))
+                        }
+                    }
+                },
                 onDismiss = { showTokenEditor = false },
                 singleLine = false,
                 maxLines = 20,
@@ -200,9 +218,19 @@ fun ContentSettings(
             } },
             onValueSelected = onLikedAutoDownload
         )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.use_login_for_browse)) },
+            description = stringResource(R.string.use_login_for_browse_desc),
+            icon = { Icon(Icons.Rounded.Person, null) },
+            checked = useLoginForBrowse,
+            onCheckedChange = {
+                YouTube.useLoginForBrowse = it
+                onUseLoginForBrowseChange(it)
+            }
+        )
 
         PreferenceGroupTitle(
-            title = "LOCALIZATION"
+            title = stringResource(R.string.grp_localization)
         )
         ListPreference(
             title = { Text(stringResource(R.string.content_language)) },
@@ -230,16 +258,14 @@ fun ContentSettings(
         )
 
         PreferenceGroupTitle(
-            title = "PROXY"
+            title = stringResource(R.string.grp_proxy)
         )
-
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_proxy)) },
             checked = proxyEnabled,
             onCheckedChange = onProxyEnabledChange
         )
-
-        if (proxyEnabled) {
+        AnimatedVisibility(proxyEnabled) {
             ListPreference(
                 title = { Text(stringResource(R.string.proxy_type)) },
                 selectedValue = proxyType,

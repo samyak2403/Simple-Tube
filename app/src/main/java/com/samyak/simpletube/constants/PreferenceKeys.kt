@@ -15,6 +15,7 @@ val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val NewInterfaceKey = booleanPreferencesKey("newInterface")
 val ShowLikedAndDownloadedPlaylist = booleanPreferencesKey("showLikedAndDownloadedPlaylist")
+val SwipeToQueueKey = booleanPreferencesKey("swipeToQueue")
 val FlatSubfoldersKey = booleanPreferencesKey("flatSubfolders")
 
 val EnabledTabsKey = stringPreferencesKey("enabledTabs")
@@ -48,6 +49,7 @@ val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipOnErrorKey = booleanPreferencesKey("skipOnError")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
+val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val KeepAliveKey = booleanPreferencesKey("keepAlive")
 val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
 
@@ -65,6 +67,8 @@ val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
 val MultilineLrcKey = booleanPreferencesKey("multilineLrc")
 val LyricTrimKey = booleanPreferencesKey("lyricTrim")
+val LyricSourcePrefKey = booleanPreferencesKey("preferLocalLyrics")
+val LyricFontSizeKey = intPreferencesKey("lyricFontSize")
 
 
 /**
@@ -77,6 +81,7 @@ val MaxImageCacheSizeKey = intPreferencesKey("maxImageCacheSize")
  * Privacy
  */
 val PauseListenHistoryKey = booleanPreferencesKey("pauseListenHistory")
+val PauseRemoteListenHistoryKey = booleanPreferencesKey("pauseRemoteListenHistory")
 val PauseSearchHistoryKey = booleanPreferencesKey("pauseSearchHistory")
 val EnableKugouKey = booleanPreferencesKey("enableKugou")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrcLib")
@@ -123,6 +128,7 @@ enum class ScannerMatchCriteria {
  */
 val DevSettingsKey = booleanPreferencesKey("devSettings")
 val FirstSetupPassed = booleanPreferencesKey("firstSetupPassed")
+val SwipeToSkip = booleanPreferencesKey("swipeToSkip")
 
 
 /**
@@ -223,6 +229,7 @@ enum class LikedAutodownloadMode {
 }
 
 val VisitorDataKey = stringPreferencesKey("visitorData")
+val DataSyncIdKey = stringPreferencesKey("dataSyncId")
 val InnerTubeCookieKey = stringPreferencesKey("innerTubeCookie")
 val AccountNameKey = stringPreferencesKey("accountName")
 val AccountEmailKey = stringPreferencesKey("accountEmail")

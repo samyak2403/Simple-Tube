@@ -466,7 +466,8 @@ fun OnlinePlaylistScreen(
                                                 ListQueue(
                                                     playlistId = playlist.playEndpoint!!.playlistId,
                                                     title = playlist.title,
-                                                    items = songs.map { it.toMediaMetadata() }.shuffled(),
+                                                    items = songs.map { it.toMediaMetadata() },
+                                                    startShuffled = true,
                                                 )
                                             )
                                         },
@@ -516,6 +517,7 @@ fun OnlinePlaylistScreen(
                         items = songs
                     ) { index, song ->
                         val onCheckedChange: (Boolean) -> Unit = {
+                            haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                             if (it) {
                                 selection.add(index)
                             } else {

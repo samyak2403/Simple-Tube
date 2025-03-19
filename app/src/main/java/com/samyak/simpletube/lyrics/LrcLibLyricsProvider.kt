@@ -1,10 +1,10 @@
 package com.samyak.simpletube.lyrics
 
 import android.content.Context
+import com.samyak.lrclib.LrcLib
 import com.samyak.simpletube.constants.EnableLrcLibKey
 import com.samyak.simpletube.utils.dataStore
 import com.samyak.simpletube.utils.get
-import com.samyak.lrclib.LrcLib
 
 /**
  * Source: https://github.com/Malopieds/InnerTune

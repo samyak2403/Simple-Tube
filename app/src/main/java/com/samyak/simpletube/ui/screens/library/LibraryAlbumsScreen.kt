@@ -52,7 +52,9 @@ import com.samyak.simpletube.constants.CONTENT_TYPE_HEADER
 import com.samyak.simpletube.constants.GridThumbnailHeight
 import com.samyak.simpletube.constants.LibraryViewType
 import com.samyak.simpletube.constants.LibraryViewTypeKey
+import com.samyak.simpletube.extensions.isSyncEnabled
 import com.samyak.simpletube.ui.component.ChipsRow
+import com.samyak.simpletube.ui.component.EmptyPlaceholder
 import com.samyak.simpletube.ui.component.LibraryAlbumGridItem
 import com.samyak.simpletube.ui.component.LibraryAlbumListItem
 import com.samyak.simpletube.ui.component.LocalMenuState
@@ -60,8 +62,6 @@ import com.samyak.simpletube.ui.component.SortHeader
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
 import com.samyak.simpletube.viewmodels.LibraryAlbumsViewModel
-import com.samyak.simpletube.extensions.isSyncEnabled
-import com.samyak.simpletube.ui.component.EmptyPlaceholder
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -135,10 +135,10 @@ fun LibraryAlbumsScreen(
             ) {
                 Icon(
                     imageVector =
-                        when (albumViewType) {
-                            LibraryViewType.LIST -> Icons.AutoMirrored.Rounded.List
-                            LibraryViewType.GRID -> Icons.Rounded.GridView
-                        },
+                    when (albumViewType) {
+                        LibraryViewType.LIST -> Icons.AutoMirrored.Rounded.List
+                        LibraryViewType.GRID -> Icons.Rounded.GridView
+                    },
                     contentDescription = null
                 )
             }

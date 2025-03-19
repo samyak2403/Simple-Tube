@@ -71,7 +71,6 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalDownloadUtil
-import com.samyak.simpletube.LocalIsNetworkConnected
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.LocalSyncUtils
@@ -84,7 +83,6 @@ import com.samyak.simpletube.constants.SongSortTypeKey
 import com.samyak.simpletube.constants.ThumbnailCornerRadius
 import com.samyak.simpletube.db.entities.PlaylistEntity
 import com.samyak.simpletube.db.entities.Song
-import com.samyak.simpletube.extensions.getAvailableSongs
 import com.samyak.simpletube.extensions.isSyncEnabled
 import com.samyak.simpletube.extensions.toMediaItem
 import com.samyak.simpletube.models.toMediaMetadata
@@ -122,7 +120,6 @@ fun AutoPlaylistScreen(
     val database = LocalDatabase.current
     val syncUtils = LocalSyncUtils.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isNetworkConnected = LocalIsNetworkConnected.current
 
     val songs by viewModel.songs.collectAsState()
 
@@ -147,9 +144,9 @@ fun AutoPlaylistScreen(
 
     val playlistId = viewModel.playlistId
     val playlistType = when (playlistId) {
-            "liked" -> PlaylistType.LIKE
-            "downloaded" -> PlaylistType.DOWNLOAD
-            else -> PlaylistType.OTHER
+        "liked" -> PlaylistType.LIKE
+        "downloaded" -> PlaylistType.DOWNLOAD
+        else -> PlaylistType.OTHER
     }
     val playlist = PlaylistEntity(
         id = playlistId,
@@ -321,9 +318,9 @@ fun AutoPlaylistScreen(
 
                                 Text(
                                     text = if (playlistType == PlaylistType.LIKE && downloadCount > 0)
-                                            getNSongsString(songs.size, downloadCount)
-                                        else
-                                            getNSongsString(songs.size),
+                                        getNSongsString(songs.size, downloadCount)
+                                    else
+                                        getNSongsString(songs.size),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Normal
                                 )
@@ -374,7 +371,7 @@ fun AutoPlaylistScreen(
                                         else -> {
                                             IconButton(
                                                 onClick = {
-                                                    downloadUtil.download(songs.map{ it.toMediaMetadata() })
+                                                    downloadUtil.download(songs.map { it.toMediaMetadata() })
                                                 }
                                             ) {
                                                 Icon(
@@ -431,8 +428,8 @@ fun AutoPlaylistScreen(
                                     playerConnection.playQueue(
                                         ListQueue(
                                             title = playlist.name,
-                                            items = songs.shuffled()
-                                                .map { it.toMediaMetadata() },
+                                            items = songs.map { it.toMediaMetadata() },
+                                            startShuffled = true,
                                             playlistId = playlist.browseId
                                         )
                                     )
@@ -465,12 +462,12 @@ fun AutoPlaylistScreen(
                         if (inSelectMode) {
                             SelectHeader(
                                 selectedItems = selection.mapNotNull { id ->
-                                        songs.find { it.song.id == id }
-                                    }.map { it.toMediaMetadata() },
-                                totalItemCount = songs.getAvailableSongs(isNetworkConnected).size,
+                                    songs.find { it.song.id == id }
+                                }.map { it.toMediaMetadata() },
+                                totalItemCount = songs.size,
                                 onSelectAll = {
                                     selection.clear()
-                                    selection.addAll(songs.getAvailableSongs(isNetworkConnected).map { it.song.id })
+                                    selection.addAll(songs.map { it.song.id })
                                 },
                                 onDeselectAll = { selection.clear() },
                                 menuState = menuState,
@@ -520,14 +517,13 @@ fun AutoPlaylistScreen(
                 items = songs,
                 key = { _, song -> song.id }
             ) { index, song ->
-
                 SongListItem(
                     song = song,
                     onPlay = {
                         playerConnection.playQueue(
                             ListQueue(
                                 title = playlist.name,
-                                items = songs.map { it.toMediaMetadata()},
+                                items = songs.map { it.toMediaMetadata() },
                                 startIndex = index,
                                 playlistId = playlist.browseId
                             )
@@ -546,7 +542,9 @@ fun AutoPlaylistScreen(
                     inSelectMode = inSelectMode,
                     isSelected = selection.contains(song.id),
                     navController = navController,
-                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background),
                 )
             }
         }

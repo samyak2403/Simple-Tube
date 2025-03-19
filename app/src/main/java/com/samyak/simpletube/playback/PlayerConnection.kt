@@ -15,7 +15,6 @@ import com.samyak.simpletube.extensions.currentMetadata
 import com.samyak.simpletube.extensions.getCurrentQueueIndex
 import com.samyak.simpletube.extensions.getQueueWindows
 import com.samyak.simpletube.extensions.metadata
-import com.samyak.simpletube.models.QueueBoard
 import com.samyak.simpletube.playback.MusicService.MusicBinder
 import com.samyak.simpletube.playback.queues.Queue
 import com.samyak.simpletube.utils.reportException
@@ -23,6 +22,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -42,6 +43,7 @@ class PlayerConnection(
     val isPlaying = combine(playbackState, playWhenReady) { playbackState, playWhenReady ->
         playWhenReady && playbackState != STATE_ENDED
     }.stateIn(scope, SharingStarted.Lazily, player.playWhenReady && player.playbackState != STATE_ENDED)
+    val waitingForNetworkConnection: StateFlow<Boolean> = service.waitingForNetworkConnection.asStateFlow()
     val mediaMetadata = MutableStateFlow(player.currentMetadata)
     val currentSong = mediaMetadata.flatMapLatest {
         database.song(it?.id)
@@ -92,8 +94,8 @@ class PlayerConnection(
         repeatMode.value = player.repeatMode
     }
 
-    fun playQueue(queue: Queue, replace: Boolean = true, title: String? = null) {
-        service.playQueue(queue, replace = replace, title = title)
+    fun playQueue(queue: Queue, replace: Boolean = true, isRadio: Boolean = false, title: String? = null) {
+        service.playQueue(queue, replace = replace, title = title, isRadio = isRadio)
     }
 
     /**

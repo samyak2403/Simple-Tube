@@ -186,6 +186,7 @@ fun ArtistItemsScreen(
                 key = { _, item -> item.hashCode() }
             ) { index, song ->
                 val onCheckedChange: (Boolean) -> Unit = {
+                    haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                     if (it) {
                         selection.add(song.id)
                     } else {

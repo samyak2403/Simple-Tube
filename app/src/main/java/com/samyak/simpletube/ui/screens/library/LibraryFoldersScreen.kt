@@ -67,6 +67,7 @@ import com.samyak.simpletube.ui.component.SelectHeader
 import com.samyak.simpletube.ui.component.SongFolderItem
 import com.samyak.simpletube.ui.component.SongListItem
 import com.samyak.simpletube.ui.component.SortHeader
+import com.samyak.simpletube.ui.utils.uninitializedDirectoryTree
 import com.samyak.simpletube.utils.numberToAlpha
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
@@ -88,6 +89,8 @@ fun LibraryFoldersScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val songs by viewModel.localSongDirectoryTree.collectAsState()
+
     /**
      * The top of the stack is the folder that the page will render.
      * Clicking on a folder pushes, while the back button pops.
@@ -108,22 +111,31 @@ fun LibraryFoldersScreen(
         folderStack.clear()
     }
 
-    // initialize with first directory
-    if (folderStack.isEmpty()) {
-        viewModel.getLocalSongs(database)
-
-        folderStack.push(
-            if (flatSubfolders) viewModel.localSongDirectoryTree.value.toFlattenedTree()
-            else viewModel.localSongDirectoryTree.value
-        )
-    }
-
     // content to load for this page
     var currDir by remember {
         // hello mikooo from the fture, this is mikooo from the past warning you to not touch this.
         // mikooo, you clearly are just going to waste time trying to put this in the in the viewmodel
         // If anyone else would like to try, be my guest
-        mutableStateOf(folderStack.peek())
+        mutableStateOf(uninitializedDirectoryTree)
+    }
+
+    LaunchedEffect(songs) {
+        if (songs == uninitializedDirectoryTree) {
+            viewModel.localSongDirectoryTree.value = viewModel.getLocalSongs(database).value
+        }
+
+        // reset current directory
+        folderStack.clear()
+        if (songs == uninitializedDirectoryTree) {
+            folderStack.push(uninitializedDirectoryTree)
+        } else {
+            folderStack.push(
+                if (flatSubfolders) songs!!.toFlattenedTree()
+                else songs
+            )
+
+            currDir = folderStack.peek()
+        }
     }
 
     val mutableSongs = remember {
@@ -347,7 +359,8 @@ fun LibraryFoldersScreen(
                 playerConnection.playQueue(
                     ListQueue(
                         title = currDir.currentDir,
-                        items = currDir.toSortedList(sortType, sortDescending).shuffled().map { it.toMediaMetadata() }
+                        items = currDir.toSortedList(sortType, sortDescending).map { it.toMediaMetadata() },
+                        startShuffled = true
                     )
                 )
             }

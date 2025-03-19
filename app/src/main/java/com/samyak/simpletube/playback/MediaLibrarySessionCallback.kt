@@ -15,6 +15,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.samyak.simpletube.BuildConfig
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.MediaSessionConstants
 import com.samyak.simpletube.constants.SongSortType
@@ -35,15 +36,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.plus
+import timber.log.Timber
 import javax.inject.Inject
+import kotlin.collections.map
 
 class MediaLibrarySessionCallback @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val downloadUtil: DownloadUtil,
 ) : MediaLibrarySession.Callback {
+    private val TAG = MediaLibrarySessionCallback::class.simpleName.toString()
     private val scope = CoroutineScope(Dispatchers.Main) + Job()
     var toggleLike: () -> Unit = {}
+    var toggleStartRadio: () -> Unit = {}
     var toggleLibrary: () -> Unit = {}
 
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
@@ -52,6 +57,7 @@ class MediaLibrarySessionCallback @Inject constructor(
             connectionResult.availableSessionCommands.buildUpon()
                 .add(MediaSessionConstants.CommandToggleLibrary)
                 .add(MediaSessionConstants.CommandToggleLike)
+                .add(MediaSessionConstants.CommandToggleStartRadio)
                 .add(MediaSessionConstants.CommandToggleShuffle)
                 .add(MediaSessionConstants.CommandToggleRepeatMode)
                 .build(),
@@ -67,12 +73,21 @@ class MediaLibrarySessionCallback @Inject constructor(
     ): ListenableFuture<SessionResult> {
         when (customCommand.customAction) {
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
+            MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
             MediaSessionConstants.ACTION_TOGGLE_LIBRARY -> toggleLibrary()
             MediaSessionConstants.ACTION_TOGGLE_SHUFFLE -> session.player.toggleShuffleMode()
             MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> session.player.toggleRepeatMode()
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }
+
+//    override fun onPlaybackResumption(
+//        mediaSession: MediaSession,
+//        controller: MediaSession.ControllerInfo
+//    ): ListenableFuture<MediaItemsWithStartPosition> {
+//        // Already handled by the player. This just shuts up the exception
+//        return SettableFuture.create<MediaItemsWithStartPosition>()
+//    }
 
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
@@ -233,6 +248,19 @@ class MediaLibrarySessionCallback @Inject constructor(
 
             else -> defaultResult
         }
+    }
+
+    override fun onSearch(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        query: String,
+        params: MediaLibraryService.LibraryParams?
+    ): ListenableFuture<LibraryResult<Void>> {
+        if (BuildConfig.DEBUG) {
+            Timber.tag(TAG).d("MediaLibrarySessionCallback.onSearch: $query")
+        }
+        session.notifySearchResultChanged(browser, query, 0, params)
+        return Futures.immediateFuture(LibraryResult.ofVoid(params))
     }
 
     private fun drawableUri(@DrawableRes id: Int) = Uri.Builder()

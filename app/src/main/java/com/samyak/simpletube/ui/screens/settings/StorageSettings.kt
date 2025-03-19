@@ -27,14 +27,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil.annotation.ExperimentalCoilApi
 import coil.imageLoader
+import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.MaxImageCacheSizeKey
+import com.samyak.simpletube.constants.SongSortType
 import com.samyak.simpletube.extensions.tryOrNull
+import com.samyak.simpletube.playback.ExoDownloadService
 import com.samyak.simpletube.ui.component.IconButton
 import com.samyak.simpletube.ui.component.ListPreference
 import com.samyak.simpletube.ui.component.PreferenceEntry
@@ -57,6 +61,7 @@ fun StorageSettings(
     val context = LocalContext.current
     val imageDiskCache = context.imageLoader.diskCache ?: return
     val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
+    val database = LocalDatabase.current
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -80,7 +85,10 @@ fun StorageSettings(
         }
     }
 
-    val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(key = MaxImageCacheSizeKey, defaultValue = 512)
+    val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(
+        key = MaxImageCacheSizeKey,
+        defaultValue = 512
+    )
 
     // clear caches when turning off
     LaunchedEffect(maxImageCacheSize) {
@@ -113,6 +121,16 @@ fun StorageSettings(
                     downloadCache.keys.forEach { key ->
                         downloadCache.removeResource(key)
                     }
+                    database.downloadSongs(SongSortType.NAME, true).collect { songs ->
+                        songs.forEach { song ->
+                            DownloadService.sendRemoveDownload(
+                                context,
+                                ExoDownloadService::class.java,
+                                song.song.id,
+                                false
+                            )
+                        }
+                    }
                 }
             },
         )
@@ -130,7 +148,10 @@ fun StorageSettings(
             )
 
             Text(
-                text = stringResource(R.string.size_used, "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"),
+                text = stringResource(
+                    R.string.size_used,
+                    "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             )

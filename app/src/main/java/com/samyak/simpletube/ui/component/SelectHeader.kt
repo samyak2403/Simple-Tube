@@ -1,3 +1,4 @@
+
 package com.samyak.simpletube.ui.component
 
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.samyak.simpletube.R
 import com.samyak.simpletube.models.MediaMetadata
 import com.samyak.simpletube.ui.menu.SelectionMediaMetadataMenu
 
@@ -29,12 +32,14 @@ fun RowScope.SelectHeader(
     onDismiss: () -> Unit = {},
     onRemoveFromHistory: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 2.dp, bottom = 3.dp)
     ) {
         Text(
-            text = "${selectedItems.size}/${totalItemCount} selected",
+            text = "${selectedItems.size}/${context.resources.getQuantityString(R.plurals.n_selected, totalItemCount, totalItemCount)}",
             modifier = Modifier.weight(1f, false)
         )
 

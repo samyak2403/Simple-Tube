@@ -4,6 +4,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,17 +13,21 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.OndemandVideo
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,9 +37,13 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -51,8 +60,8 @@ import com.samyak.simpletube.constants.MiniPlayerHeight
 import com.samyak.simpletube.constants.ThumbnailCornerRadius
 import com.samyak.simpletube.extensions.togglePlayPause
 import com.samyak.simpletube.models.MediaMetadata
-import com.samyak.simpletube.ui.component.AsyncLocalImage
-import com.samyak.simpletube.ui.utils.getLocalThumbnail
+import com.samyak.simpletube.ui.component.AsyncImageLocal
+import com.samyak.simpletube.ui.utils.imageCache
 
 @Composable
 fun MiniPlayer(
@@ -109,7 +118,7 @@ fun MiniPlayer(
                 }
             ) {
                 Icon(
-                    imageVector = if(playbackState == Player.STATE_ENDED) Icons.Rounded.Replay else if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    imageVector = if (playbackState == Player.STATE_ENDED) Icons.Rounded.Replay else if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = null
                 )
             }
@@ -133,18 +142,31 @@ fun MiniMediaInfo(
     error: PlaybackException?,
     modifier: Modifier = Modifier,
 ) {
+    val playerConnection = LocalPlayerConnection.current
+    val isWaitingForNetwork by playerConnection?.waitingForNetworkConnection?.collectAsState(initial = false)
+        ?: remember { mutableStateOf(false) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        Box(modifier = Modifier.padding(6.dp)) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .padding(6.dp)
+                .size(48.dp)
+        ) {
+            var isRectangularImage by remember { mutableStateOf(false) }
+
             if (mediaMetadata.isLocal) {
                 // local thumbnail arts
-                AsyncLocalImage(
-                    image = { getLocalThumbnail(mediaMetadata.localPath, true) },
+                val image = imageCache.getLocalThumbnail(mediaMetadata.localPath, true)
+                if (image != null)
+                    isRectangularImage = image.width.toFloat() / image.height != 1f
+
+                AsyncImageLocal(
+                    image = { image },
                     contentDescription = null,
                     modifier = Modifier
-                        .size(48.dp)
                         .clip(RoundedCornerShape(ThumbnailCornerRadius))
                         .aspectRatio(ratio = 1f)
                 )
@@ -154,32 +176,71 @@ fun MiniMediaInfo(
                     model = mediaMetadata.thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    onSuccess = { success ->
+                        val width = success.result.drawable.intrinsicWidth
+                        val height = success.result.drawable.intrinsicHeight
+
+                        isRectangularImage = width.toFloat() / height != 1f
+                    },
                     modifier = Modifier
-                        .size(48.dp)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(ThumbnailCornerRadius))
                 )
             }
+
+            if (isRectangularImage) {
+                val radial = Brush.radialGradient(
+                    0.0f to Color.Black.copy(alpha = 0.5f),
+                    0.8f to Color.Black.copy(alpha = 0.05f),
+                    1.0f to Color.Transparent,
+                )
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size((maxWidth / 3) + 6.dp)
+                        .offset(x = -maxWidth / 25)
+                        .background(brush = radial, shape = CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.OndemandVideo,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.padding(3.dp)
+                    )
+                }
+            }
+
             androidx.compose.animation.AnimatedVisibility(
-                visible = error != null,
+                visible = error != null || isWaitingForNetwork,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
                 Box(
                     Modifier
-                        .size(48.dp)
                         .background(
                             color = Color.Black.copy(alpha = 0.6f),
                             shape = RoundedCornerShape(ThumbnailCornerRadius)
                         )
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                    )
+                    if (isWaitingForNetwork) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                        )
+                    }
                 }
             }
         }

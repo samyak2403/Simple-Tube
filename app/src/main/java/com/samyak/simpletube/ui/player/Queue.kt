@@ -75,14 +75,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachReversed
-import androidx.media3.common.C
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
@@ -90,6 +92,7 @@ import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Timeline
 import androidx.navigation.NavController
 import com.samyak.simpletube.LocalPlayerConnection
+import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.ListItemHeight
 import com.samyak.simpletube.constants.LockQueueKey
 import com.samyak.simpletube.constants.PlayerHorizontalPadding
@@ -99,7 +102,7 @@ import com.samyak.simpletube.extensions.togglePlayPause
 import com.samyak.simpletube.extensions.toggleRepeatMode
 import com.samyak.simpletube.models.MediaMetadata
 import com.samyak.simpletube.models.MultiQueueObject
-import com.samyak.simpletube.models.isShuffleEnabled
+import com.samyak.simpletube.playback.isShuffleEnabled
 import com.samyak.simpletube.playback.PlayerConnection.Companion.queueBoard
 import com.samyak.simpletube.ui.component.BottomSheet
 import com.samyak.simpletube.ui.component.BottomSheetState
@@ -131,6 +134,7 @@ fun Queue(
     var lockQueue by rememberPreference(LockQueueKey, defaultValue = false)
 
     val menuState = LocalMenuState.current
+    val haptic = LocalHapticFeedback.current
 
     // player vars
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -173,7 +177,10 @@ fun Queue(
                             .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                     )
             ) {
-                IconButton(onClick = { state.expandSoft() }) {
+                IconButton(onClick = {
+                    state.expandSoft()
+                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                }) {
                     Icon(
                         imageVector = Icons.Rounded.ExpandLess,
                         tint = onBackgroundColor,
@@ -237,7 +244,6 @@ fun Queue(
                     queueBoard.moveSong(
                         from,
                         to,
-                        playerConnection.player.currentMediaItemIndex,
                         playerConnection.service
                     )
                     playerConnection.player.moveMediaItem(from, to)
@@ -341,7 +347,7 @@ fun Queue(
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = "Queues",
+                    text = stringResource(R.string.queues_title),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -375,7 +381,7 @@ fun Queue(
             }
 
             if (mutableQueues.isEmpty()) {
-                Text(text = "No queues")
+                Text(text = stringResource(R.string.queues_empty))
             }
 
             LazyColumn(
@@ -411,7 +417,7 @@ fun Queue(
                                             detachedQueue.clear()
                                             detachedQueue.addAll(mq.getCurrentQueueShuffled())
                                             detachedQueueIndex = index
-                                            detachedQueuePos = mq.queuePos
+                                            detachedQueuePos = mq.getQueuePosShuffled()
                                             detachedQueueTitle = mq.title
                                         }
 
@@ -493,7 +499,7 @@ fun Queue(
             ) {
                 Column {
                     Text(
-                        text = "Songs",
+                        text = stringResource(R.string.songs),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -518,8 +524,7 @@ fun Queue(
                         onClick = {
                             coroutineScope.launch(Dispatchers.Main) {
                                 // change to this queue, seek to the item clicked on
-                                queueBoard.setCurrQueue(detachedQueueIndex, playerConnection, false)
-                                playerConnection.player.seekTo(detachedQueuePos, C.TIME_UNSET)
+                                queueBoard.setCurrQueue(detachedQueueIndex, playerConnection)
                                 playerConnection.player.playWhenReady = true
                                 detachedHead = false
                                 updateQueues()
@@ -557,8 +562,7 @@ fun Queue(
                                         onClick = {
                                             coroutineScope.launch(Dispatchers.Main) {
                                                 // change to this queue, seek to the item clicked on
-                                                queueBoard.setCurrQueue(detachedQueueIndex, playerConnection, false)
-                                                playerConnection.player.seekTo(index, C.TIME_UNSET)
+                                                queueBoard.setCurrQueue(detachedQueueIndex, playerConnection)
                                                 detachedHead = false
                                                 updateQueues()
                                             }
@@ -593,12 +597,18 @@ fun Queue(
                                 confirmValueChange = { dismissValue ->
                                     when (dismissValue) {
                                         SwipeToDismissBoxValue.StartToEnd -> {
-                                            playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                            if (queueBoard.removeCurrentQueueSong(currentItem.firstPeriodIndex, playerConnection.service)) {
+                                                playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                            }
+                                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                                             return@rememberSwipeToDismissBoxState true
                                         }
 
                                         SwipeToDismissBoxValue.EndToStart -> {
-                                            playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                            if (queueBoard.removeCurrentQueueSong(currentItem.firstPeriodIndex, playerConnection.service)) {
+                                                playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                            }
+                                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                                             return@rememberSwipeToDismissBoxState true
                                         }
 
@@ -610,6 +620,7 @@ fun Queue(
                             )
 
                             val onCheckedChange: (Boolean) -> Unit = {
+                                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                                 if (it) {
                                     selectedItems.add(window.uid.hashCode())
                                 } else {
@@ -641,6 +652,7 @@ fun Queue(
                                                                 state.collapseSoft()
                                                             },
                                                         )
+                                                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                                                     }
                                                 }
                                             ) {
@@ -759,6 +771,7 @@ fun Queue(
                             enabled = !landscape,
                             onClick = {
                                 multiqueueExpand = !multiqueueExpand
+                                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                             },
                             modifier = Modifier.padding(vertical = 6.dp)
                         )
@@ -805,7 +818,10 @@ fun Queue(
                                 .padding(4.dp)
                                 .alpha(if (shuffleModeEnabled) 1f else 0.3f),
                             color = onBackgroundColor,
-                            onClick = { playerConnection.triggerShuffle() }
+                            onClick = {
+                                playerConnection.triggerShuffle()
+                                haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            }
                         )
                     }
 
@@ -817,7 +833,10 @@ fun Queue(
                                 .size(32.dp)
                                 .align(Alignment.Center),
                             color = onBackgroundColor,
-                            onClick = playerConnection.player::seekToPrevious
+                            onClick = {
+                                playerConnection.player.seekToPrevious()
+                                haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            }
                         )
                     }
 
@@ -837,6 +856,8 @@ fun Queue(
                                 } else {
                                     playerConnection.player.togglePlayPause()
                                 }
+                                // play/pause is slightly harder haptic
+                                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                             }
                         )
                     }
@@ -851,7 +872,10 @@ fun Queue(
                                 .size(32.dp)
                                 .align(Alignment.Center),
                             color = onBackgroundColor,
-                            onClick = playerConnection.player::seekToNext
+                            onClick = {
+                                playerConnection.player.seekToNext()
+                                haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            }
                         )
                     }
 
@@ -868,7 +892,10 @@ fun Queue(
                                 .padding(4.dp)
                                 .alpha(if (repeatMode == REPEAT_MODE_OFF) 0.3f else 1f),
                             color = onBackgroundColor,
-                            onClick = playerConnection.player::toggleRepeatMode
+                            onClick = {
+                                playerConnection.player.toggleRepeatMode()
+                                haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            }
                         )
                     }
                 }
@@ -916,6 +943,7 @@ fun Queue(
                             .fillMaxWidth()
                             .clickable {
                                 state.collapseSoft()
+                                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                             }
                             .windowInsetsPadding(
                                 WindowInsets.systemBars
@@ -962,6 +990,7 @@ fun Queue(
                     .align(Alignment.BottomCenter)
                     .clickable {
                         state.collapseSoft()
+                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                     }
                     .windowInsetsPadding(
                         WindowInsets.systemBars

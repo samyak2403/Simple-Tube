@@ -26,6 +26,7 @@ import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.AccountChannelHandleKey
 import com.samyak.simpletube.constants.AccountEmailKey
 import com.samyak.simpletube.constants.AccountNameKey
+import com.samyak.simpletube.constants.DataSyncIdKey
 import com.samyak.simpletube.constants.InnerTubeCookieKey
 import com.samyak.simpletube.constants.VisitorDataKey
 import com.samyak.simpletube.ui.component.IconButton
@@ -44,6 +45,7 @@ fun LoginScreen(
     navController: NavController,
 ) {
     var visitorData by rememberPreference(VisitorDataKey, "")
+    var dataSyncId by rememberPreference(DataSyncIdKey, "")
     var innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
     var accountName by rememberPreference(AccountNameKey, "")
     var accountEmail by rememberPreference(AccountEmailKey, "")
@@ -58,8 +60,11 @@ fun LoginScreen(
         factory = { context ->
             WebView(context).apply {
                 webViewClient = object : WebViewClient() {
-                    override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
-                        if (url.startsWith("https://music.youtube.com")) {
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
+                        loadUrl("javascript:Android.onRetrieveDataSyncId(window.yt.config_.DATASYNC_ID)")
+
+                        if (url?.startsWith("https://music.youtube.com") == true) {
                             innerTubeCookie = CookieManager.getInstance().getCookie(url)
                             GlobalScope.launch {
                                 YouTube.accountInfo().onSuccess {
@@ -71,10 +76,6 @@ fun LoginScreen(
                                 }
                             }
                         }
-                    }
-
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
                     }
                 }
                 settings.apply {
@@ -89,9 +90,15 @@ fun LoginScreen(
                             visitorData = newVisitorData
                         }
                     }
+                    @JavascriptInterface
+                    fun onRetrieveDataSyncId(newDataSyncId: String?) {
+                        if (newDataSyncId != null) {
+                            dataSyncId = newDataSyncId.substringBefore("||")
+                        }
+                    }
                 }, "Android")
                 webView = this
-                loadUrl("https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F")
+                loadUrl("https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com")
             }
         }
     )

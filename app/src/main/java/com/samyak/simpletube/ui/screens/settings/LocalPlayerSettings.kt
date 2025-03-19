@@ -1,13 +1,11 @@
 package com.samyak.simpletube.ui.screens.settings
 
-import android.Manifest
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,9 +15,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +42,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +62,7 @@ import androidx.core.app.ActivityCompat.requestPermissions
 import androidx.navigation.NavController
 import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
+import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.AutomaticScannerKey
 import com.samyak.simpletube.constants.ExcludedScanPathsKey
@@ -82,27 +83,26 @@ import com.samyak.simpletube.ui.component.PreferenceEntry
 import com.samyak.simpletube.ui.component.PreferenceGroupTitle
 import com.samyak.simpletube.ui.component.SwitchPreference
 import com.samyak.simpletube.ui.utils.DEFAULT_SCAN_PATH
+import com.samyak.simpletube.ui.utils.MEDIA_PERMISSION_LEVEL
 import com.samyak.simpletube.ui.utils.backToMain
-import com.samyak.simpletube.ui.utils.cacheDirectoryTree
+import com.samyak.simpletube.ui.utils.imageCache
 import com.samyak.simpletube.utils.isPackageInstalled
-import com.samyak.simpletube.utils.purgeCache
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.destroyScanner
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.getScanner
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerActive
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerFinished
+import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerProgressCurrent
+import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerProgressTotal
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerRequestCancel
+import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerShowLoading
 import com.samyak.simpletube.utils.scanners.ScannerAbortException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-
-val MEDIA_PERMISSION_LEVEL =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
-    else Manifest.permission.READ_EXTERNAL_STORAGE
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,10 +113,15 @@ fun LocalPlayerSettings(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
+    val playerConnection = LocalPlayerConnection.current
 
     // scanner vars
     val isScannerActive by scannerActive.collectAsState()
+    val showLoading by scannerShowLoading.collectAsState()
     val isScanFinished by scannerActive.collectAsState()
+    val scannerProgressTotal by scannerProgressTotal.collectAsState()
+    val scannerProgressCurrent by scannerProgressCurrent.collectAsState()
+
     var scannerFailure = false
     var mediaPermission by remember { mutableStateOf(true) }
 
@@ -148,7 +153,10 @@ fun LocalPlayerSettings(
 
     // other vars
     var tempScanPaths by remember { mutableStateOf("") }
-    val (lastLocalScan, onLastLocalScanChange) = rememberPreference(LastLocalScanKey, LocalDateTime.now().atOffset(ZoneOffset.UTC).toEpochSecond())
+    val (lastLocalScan, onLastLocalScanChange) = rememberPreference(
+        LastLocalScanKey,
+        LocalDateTime.now().atOffset(ZoneOffset.UTC).toEpochSecond()
+    )
 
     Column(
         Modifier
@@ -227,7 +235,7 @@ fun LocalPlayerSettings(
                 val dirPickerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocumentTree()
                 ) { uri ->
-                    if (uri?.path != null && !tempScanPaths.contains(uri.path!!)) {
+                    if (uri?.path != null && !("$tempScanPaths\u200B").contains(uri.path!! + "\u200B")) {
                         if (tempScanPaths.isBlank()) {
                             tempScanPaths = "${uri.path}\n"
                         } else {
@@ -268,7 +276,13 @@ fun LocalPlayerSettings(
                                         .align(Alignment.CenterVertically)
                                 )
                                 IconButton(
-                                    onClick = { tempScanPaths = tempScanPaths.replace("$it\n", "") },
+                                    onClick = {
+                                        tempScanPaths = if (tempScanPaths.substringAfter("\n").contains("\n")) {
+                                            tempScanPaths.replace("$it\n", "")
+                                        } else {
+                                            " " // cursed bug
+                                        }
+                                    },
                                     onLongClick = {}
                                 ) {
                                     Icon(
@@ -294,7 +308,7 @@ fun LocalPlayerSettings(
         }
 
         PreferenceGroupTitle(
-            title = stringResource(R.string.manual_scanner_title)
+            title = stringResource(R.string.grp_manual_scanner)
         )
         // scanner
         Row(
@@ -318,7 +332,7 @@ fun LocalPlayerSettings(
 
                         Toast.makeText(
                             context,
-                            "The scanner requires storage permissions",
+                            context.getString(R.string.scanner_missing_storage_perm),
                             Toast.LENGTH_SHORT
                         ).show()
 
@@ -336,8 +350,9 @@ fun LocalPlayerSettings(
                     }
 
                     scannerFinished.value = false
-                    scannerActive.value = true
                     scannerFailure = false
+
+                    playerConnection?.player?.pause()
 
                     coroutineScope.launch(Dispatchers.IO) {
                         // full rescan
@@ -357,15 +372,24 @@ fun LocalPlayerSettings(
                                 )
 
                                 // start artist linking job
-                                if (lookupYtmArtists) {
+                                if (lookupYtmArtists && !isScannerActive) {
                                     coroutineScope.launch(Dispatchers.IO) {
+                                        Looper.prepare()
                                         try {
+                                            Toast.makeText(
+                                                context, context.getString(R.string.scanner_ytm_link_start),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                             scanner.localToRemoteArtist(database)
+                                            Toast.makeText(
+                                                context, context.getString(R.string.scanner_ytm_link_success),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         } catch (e: ScannerAbortException) {
                                             Looper.prepare()
                                             Toast.makeText(
                                                 context,
-                                                "Scanner (background task) failed: ${e.message}",
+                                                "${context.getString(R.string.scanner_ytm_link_success)}: ${e.message}",
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         }
@@ -377,7 +401,7 @@ fun LocalPlayerSettings(
                                 Looper.prepare()
                                 Toast.makeText(
                                     context,
-                                    "Scanner failed: ${e.message}",
+                                    "${context.getString(R.string.scanner_scan_fail)}: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             } finally {
@@ -399,15 +423,25 @@ fun LocalPlayerSettings(
                                 )
 
                                 // start artist linking job
-                                if (lookupYtmArtists) {
+                                if (lookupYtmArtists && !isScannerActive) {
                                     coroutineScope.launch(Dispatchers.IO) {
+                                        Looper.prepare()
                                         try {
-                                            scanner.localToRemoteArtist(database)
-                                        } catch (e: ScannerAbortException) {
-                                            Looper.prepare()
                                             Toast.makeText(
                                                 context,
-                                                "Scanner (background task) failed: ${e.message}",
+                                                context.getString(R.string.scanner_ytm_link_start),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            scanner.localToRemoteArtist(database)
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.scanner_ytm_link_success),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } catch (e: ScannerAbortException) {
+                                            Toast.makeText(
+                                                context,
+                                                "${context.getString(R.string.scanner_ytm_link_fail)}: ${e.message}",
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         }
@@ -419,7 +453,7 @@ fun LocalPlayerSettings(
                                 Looper.prepare()
                                 Toast.makeText(
                                     context,
-                                    "Scanner failed: ${e.message}",
+                                    "${context.getString(R.string.scanner_scan_fail)}: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             } finally {
@@ -427,40 +461,37 @@ fun LocalPlayerSettings(
                             }
                         }
 
-                        purgeCache()
-                        cacheDirectoryTree(null)
+                        // post scan actions
+                        imageCache.purgeCache()
+                        playerConnection?.service?.initQueue()
 
-                        scannerActive.value = false
                         onLastLocalScanChange(LocalDateTime.now().atOffset(ZoneOffset.UTC).toEpochSecond())
                         scannerFinished.value = true
                     }
                 }
             ) {
                 Text(
-                    text = if (isScannerActive) {
-                        "Cancel"
+                    text = if (isScannerActive || showLoading) {
+                        stringResource(R.string.action_cancel)
                     } else if (scannerFailure) {
-                        "An Error Occurred"
+                        stringResource(R.string.scanner_scan_fail)
                     } else if (isScanFinished) {
-                        "Scan complete"
+                        stringResource(R.string.scanner_progress_complete)
                     } else if (!mediaPermission) {
-                        "No Permission"
+                        stringResource(R.string.scanner_missing_storage_perm)
                     } else {
-                        "Scan"
+                        stringResource(R.string.scanner_btn_idle)
                     }
                 )
             }
 
 
             // progress indicator
-            if (!isScannerActive) {
+            if (!showLoading) {
                 return@Row
             }
 
-            // padding hax
-            VerticalDivider(
-                modifier = Modifier.padding(5.dp)
-            )
+            Spacer(Modifier.width(8.dp))
 
             CircularProgressIndicator(
                 modifier = Modifier
@@ -468,6 +499,34 @@ fun LocalPlayerSettings(
                 color = MaterialTheme.colorScheme.secondary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
+
+            Spacer(Modifier.width(8.dp))
+
+            if (scannerProgressTotal != -1) {
+                Column {
+                    val isSyncing = scannerProgressCurrent > -1
+                    Text(
+                        text = if (isSyncing) {
+                            stringResource(R.string.scanner_progress_syncing)
+                        } else {
+                            stringResource(R.string.scanner_progress_scanning)
+                        },
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = "${if (isSyncing) scannerProgressCurrent else "—"}/${
+                            pluralStringResource(
+                                if (isSyncing) R.plurals.scanner_n_song_processed else R.plurals.scanner_n_song_found,
+                                scannerProgressTotal,
+                                scannerProgressTotal
+                            )
+                        }",
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
         }
         // scanner checkboxes
         Column(
@@ -520,7 +579,7 @@ fun LocalPlayerSettings(
         }
 
         PreferenceGroupTitle(
-            title = stringResource(R.string.scanner_settings_title)
+            title = stringResource(R.string.grp_extra_scanner_settings)
         )
         // scanner sensitivity
         EnumListPreference(
@@ -562,7 +621,8 @@ fun LocalPlayerSettings(
                 if (it == ScannerImpl.FFMPEG_EXT && isFFmpegInstalled) {
                     onScannerImplChange(it)
                 } else {
-                    Toast.makeText(context, "FFmpeg extractor not detected.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.scanner_missing_ffmpeg), Toast.LENGTH_LONG)
+                        .show()
                     // Explicitly revert to TagLib if FFmpeg is not available
                     onScannerImplChange(ScannerImpl.TAGLIB)
                 }

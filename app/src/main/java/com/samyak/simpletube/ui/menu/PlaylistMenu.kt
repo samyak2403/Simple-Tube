@@ -43,7 +43,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadService
 import com.samyak.simpletube.LocalDatabase
 import com.samyak.simpletube.LocalDownloadUtil
-import com.samyak.simpletube.LocalIsNetworkConnected
+import com.samyak.simpletube.LocalNetworkConnected
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.db.entities.Playlist
@@ -77,16 +77,10 @@ fun PlaylistMenu(
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isNetworkConnected = LocalIsNetworkConnected.current
+    val isNetworkConnected = LocalNetworkConnected.current
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
     var songs by remember {
         mutableStateOf(emptyList<Song>())
-    }
-
-    val songsAvailable = {
-        songs.filter { it.song.isAvailableOffline() || isNetworkConnected }
-            .map { it.toMediaMetadata() }
-            .toList()
     }
 
     LaunchedEffect(Unit) {
@@ -217,8 +211,10 @@ fun PlaylistMenu(
                             delete(playlist.playlist)
                         }
 
-                        coroutineScope.launch(Dispatchers.IO) {
-                            playlist.playlist.browseId?.let { YouTube.deletePlaylist(it) }
+                        if (!playlist.playlist.isLocal) {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                playlist.playlist.browseId?.let { YouTube.deletePlaylist(it) }
+                            }
                         }
                     }
                 ) {
@@ -235,8 +231,10 @@ fun PlaylistMenu(
     AddToQueueDialog(
         isVisible = showChooseQueueDialog,
         onAdd = { queueName ->
-            queueBoard.addQueue(queueName, songs.map { it.toMediaMetadata() }, playerConnection,
-                forceInsert = true, delta = false)
+            queueBoard.addQueue(
+                queueName, songs.map { it.toMediaMetadata() }, playerConnection,
+                forceInsert = true, delta = false
+            )
             queueBoard.setCurrQueue(playerConnection)
         },
         onDismiss = {
@@ -300,11 +298,13 @@ fun PlaylistMenu(
             title = R.string.play
         ) {
             onDismiss()
-            playerConnection.playQueue(ListQueue(
-                title = playlist.playlist.name,
-                items = songsAvailable(),
-                playlistId = playlist.playlist.browseId
-            ))
+            playerConnection.playQueue(
+                ListQueue(
+                    title = playlist.playlist.name,
+                    items = songs.map { it.toMediaMetadata() },
+                    playlistId = playlist.playlist.browseId
+                )
+            )
         }
 
         GridMenuItem(
@@ -312,11 +312,14 @@ fun PlaylistMenu(
             title = R.string.shuffle
         ) {
             onDismiss()
-            playerConnection.playQueue(ListQueue(
-                title = playlist.playlist.name,
-                items = songsAvailable().shuffled(),
-                playlistId = playlist.playlist.browseId
-            ))
+            playerConnection.playQueue(
+                ListQueue(
+                    title = playlist.playlist.name,
+                    items = songs.map { it.toMediaMetadata() },
+                    startShuffled = true,
+                    playlistId = playlist.playlist.browseId
+                )
+            )
         }
 
         if (isNetworkConnected) {
@@ -326,10 +329,14 @@ fun PlaylistMenu(
                         icon = Icons.Rounded.Radio,
                         title = R.string.start_radio
                     ) {
-                        playerConnection.playQueue(YouTubeQueue(WatchEndpoint(
-                            playlistId = "RDAMPL$browseId",
-                            params = radioEndpointParams,
-                        )))
+                        playerConnection.playQueue(
+                            YouTubeQueue(
+                                WatchEndpoint(
+                                    playlistId = "RDAMPL$browseId",
+                                    params = radioEndpointParams,
+                                )
+                            ), isRadio = true
+                        )
                         onDismiss()
                     }
                 }
@@ -363,7 +370,7 @@ fun PlaylistMenu(
         DownloadGridMenu(
             state = downloadState,
             onDownload = {
-                val _songs = songs.filterNot { it.song.isLocal }.map{ it.toMediaMetadata() }
+                val _songs = songs.filterNot { it.song.isLocal }.map { it.toMediaMetadata() }
                 downloadUtil.download(_songs)
             },
             onRemoveDownload = {
@@ -378,13 +385,12 @@ fun PlaylistMenu(
             ) {
                 showEditDialog = true
             }
-
-            GridMenuItem(
-                icon = Icons.Rounded.PlaylistRemove,
-                title = R.string.delete
-            ) {
-                showDeletePlaylistDialog = true
-            }
+        }
+        GridMenuItem(
+            icon = Icons.Rounded.PlaylistRemove,
+            title = R.string.delete
+        ) {
+            showDeletePlaylistDialog = true
         }
 
         playlist.playlist.shareLink?.let { shareLink ->

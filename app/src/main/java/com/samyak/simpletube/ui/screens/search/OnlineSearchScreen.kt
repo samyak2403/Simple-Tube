@@ -42,18 +42,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.samyak.simpletube.LocalDatabase
-import com.samyak.simpletube.LocalDownloadUtil
-import com.samyak.simpletube.LocalIsNetworkConnected
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.SuggestionItemHeight
-import com.samyak.simpletube.extensions.isAvailableOffline
 import com.samyak.simpletube.extensions.toMediaItem
 import com.samyak.simpletube.extensions.togglePlayPause
 import com.samyak.simpletube.models.toMediaMetadata
 import com.samyak.simpletube.playback.queues.ListQueue
-import com.samyak.simpletube.playback.queues.YouTubeQueue
 import com.samyak.simpletube.ui.component.LocalMenuState
 import com.samyak.simpletube.ui.component.SearchBarIconOffsetX
 import com.samyak.simpletube.ui.component.SwipeToQueueBox
@@ -79,12 +75,10 @@ fun OnlineSearchScreen(
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val context = LocalContext.current
+    val database = LocalDatabase.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val isNetworkConnected = LocalIsNetworkConnected.current
-    val downloads by LocalDownloadUtil.current.downloads.collectAsState()
     val scope = rememberCoroutineScope()
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -171,9 +165,6 @@ fun OnlineSearchScreen(
             items = viewState.items,
             key = { it.id }
         ) { item ->
-            var available = true
-            if (item is SongItem) { available = downloads[item.id]?.isAvailableOffline() ?: false || isNetworkConnected }
-
             val content: @Composable () -> Unit = {
                 YouTubeListItem(
                     item = item,
@@ -184,80 +175,63 @@ fun OnlineSearchScreen(
                     },
                     isPlaying = isPlaying,
                     trailingContent = {
-                        if (available) {
-                            IconButton(
-                                onClick = {
-                                    menuState.show {
-                                        when (item) {
-                                            is SongItem ->
-                                                YouTubeSongMenu(
-                                                    song = item,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                        IconButton(
+                            onClick = {
+                                menuState.show {
+                                    when (item) {
+                                        is SongItem ->
+                                            YouTubeSongMenu(
+                                                song = item,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
 
-                                            is AlbumItem ->
-                                                YouTubeAlbumMenu(
-                                                    albumItem = item,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                        is AlbumItem ->
+                                            YouTubeAlbumMenu(
+                                                albumItem = item,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
 
-                                            is ArtistItem ->
-                                                YouTubeArtistMenu(
-                                                    artist = item,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                        is ArtistItem ->
+                                            YouTubeArtistMenu(
+                                                artist = item,
+                                                onDismiss = menuState::dismiss,
+                                            )
 
-                                            is PlaylistItem ->
-                                                YouTubePlaylistMenu(
-                                                    playlist = item,
-                                                    coroutineScope = scope,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                        }
+                                        is PlaylistItem ->
+                                            YouTubePlaylistMenu(
+                                                playlist = item,
+                                                coroutineScope = scope,
+                                                onDismiss = menuState::dismiss,
+                                            )
                                     }
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MoreVert,
-                                    contentDescription = null
-                                )
                             }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = null
+                            )
                         }
                     },
                     modifier = Modifier
                         .clickable {
                             when (item) {
                                 is SongItem -> {
-                                    if (available) {
-                                        if (item.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
-                                        } else if (item.id.startsWith("LA")) {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = "Search: $query",
-                                                    items = viewState.items.map { it as SongItem}.map { it.toMediaMetadata() }
-                                                ),
-                                                replace = true,
-                                                title = "Search: $query",
-                                            )
-                                        } else {
-                                            playerConnection.playQueue(
-                                                if (isNetworkConnected) {
-                                                    YouTubeQueue.radio(item.toMediaMetadata())
-                                                }
-                                                else {
-                                                    ListQueue(
-                                                        title = "${context.getString(R.string.queue_searched_songs)} $viewModel.query",
-                                                        items = listOf(item.toMediaMetadata())
-                                                    )
-                                                },
-                                                replace = true,
-                                                title = "Search: $query",
-                                            )
-                                            onDismiss()
-                                        }
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        val songSuggestions = viewState.items.filter { it is SongItem }
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = "${context.getString(R.string.queue_searched_songs_ot)} $query",
+                                                items = songSuggestions.map { (it as SongItem).toMediaMetadata() },
+                                                startIndex = songSuggestions.indexOf(item)
+                                            ),
+                                            replace = true,
+                                        )
+                                        onDismiss()
                                     }
                                 }
 
@@ -284,7 +258,6 @@ fun OnlineSearchScreen(
             if (item !is SongItem) content()
             else {
                 SwipeToQueueBox(
-                    enabled = available,
                     item = item.toMediaItem(),
                     content = { content() },
                     snackbarHostState = snackbarHostState

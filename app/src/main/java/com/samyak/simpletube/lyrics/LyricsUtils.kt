@@ -16,7 +16,7 @@ import java.nio.charset.Charset
 import kotlin.math.min
 
 /**
- * Unless otherwise stated, this file is From Gramophone as of 0d46996db54a3360e832ed06bf18170bce85534f
+ * Unless otherwise stated, this file is From Gramophone as of 9ca721e21a16bbfafdc15b8707b910edc5080c0c
  * This has been adapted for OuterTune
  * https://github.com/AkaneTan/Gramophone/blob/beta/app/src/main/kotlin/org/akanework/gramophone/logic/utils/LrcUtils.kt
  */
@@ -79,28 +79,6 @@ object LyricsUtils {
     @OptIn(UnstableApi::class)
     fun loadAndParseLyricsString(lyrics: String, parserOptions: LrcParserOptions): List<LyricsEntry> {
         return emptyList<LyricsEntry>() + parseLyrics(lyrics, parserOptions).convertForLegacy()
-    }
-
-
-    // (OuterTune) Support compressed lyrics. We don't support word for word lyrics (Extended LRC) anyways
-    fun uncompressLyrics(lyrics: String): String {
-        var result = ""
-
-        lyrics.lines().forEach { it ->
-            val regex = Regex("""\[\d+:\d+\.\d+\]""")
-            val matches = regex.findAll(it)
-
-            if (matches.count() < 1) {
-                result += "$it\n"
-            } else {
-                val c = it.split("\\[(\\d+):(\\d{2})([.:]\\d+)?]".toRegex())
-                val content = c[c.size - 1]
-                for (string in matches) {
-                    result += "${string.value}${content}\n"
-                }
-            }
-        }
-        return result
     }
 
     @OptIn(UnstableApi::class)

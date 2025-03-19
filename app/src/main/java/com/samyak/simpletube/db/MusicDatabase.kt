@@ -15,6 +15,7 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.samyak.simpletube.db.MusicDatabase.Companion.MUSIC_DATABASE_VERSION
 import com.samyak.simpletube.db.entities.AlbumArtistMap
 import com.samyak.simpletube.db.entities.AlbumEntity
 import com.samyak.simpletube.db.entities.ArtistEntity
@@ -24,10 +25,12 @@ import com.samyak.simpletube.db.entities.GenreEntity
 import com.samyak.simpletube.db.entities.LyricsEntity
 import com.samyak.simpletube.db.entities.PlayCountEntity
 import com.samyak.simpletube.db.entities.PlaylistEntity
+import com.samyak.simpletube.db.entities.PlaylistEntity.Companion.generatePlaylistId
 import com.samyak.simpletube.db.entities.PlaylistSongMap
 import com.samyak.simpletube.db.entities.PlaylistSongMapPreview
 import com.samyak.simpletube.db.entities.QueueEntity
 import com.samyak.simpletube.db.entities.QueueSongMap
+import com.samyak.simpletube.db.entities.RecentActivityItem
 import com.samyak.simpletube.db.entities.RelatedSongMap
 import com.samyak.simpletube.db.entities.SearchHistory
 import com.samyak.simpletube.db.entities.SongAlbumMap
@@ -63,6 +66,10 @@ class MusicDatabase(
     }
 
     fun close() = delegate.close()
+
+    companion object {
+        const val MUSIC_DATABASE_VERSION = 19
+    }
 }
 
 @Database(
@@ -84,14 +91,15 @@ class MusicDatabase(
         LyricsEntity::class,
         PlayCountEntity::class,
         Event::class,
-        RelatedSongMap::class
+        RelatedSongMap::class,
+        RecentActivityItem::class
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class
     ],
-    version = 16,
+    version = MUSIC_DATABASE_VERSION,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -106,7 +114,8 @@ class MusicDatabase(
         AutoMigration(from = 11, to = 12, spec = Migration11To12::class),
         AutoMigration(from = 12, to = 13, spec = Migration12To13::class), // Migration from InnerTune
         AutoMigration(from = 13, to = 14), // Initial queue as database
-        AutoMigration(from = 15, to = 16), // Add dateDownload to songs
+        AutoMigration(from = 17, to = 18, spec = Migration17To18::class), // Fix Room nonsense
+        AutoMigration(from = 18, to = 19)
     ]
 )
 @TypeConverters(Converters::class)
@@ -122,6 +131,7 @@ abstract class InternalDatabase : RoomDatabase() {
                     .addMigrations(MIGRATION_1_2)
                     .addMigrations(MIGRATION_14_15)
                     .addMigrations(MIGRATION_15_16)
+                    .addMigrations(MIGRATION_16_17)
                     .build()
             )
     }
@@ -207,8 +217,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                         title = cursor.getString(1),
                         duration = cursor.getInt(3),
                         liked = cursor.getInt(4) == 1,
-                        createDate = Instant.ofEpochMilli(Date(cursor.getLong(8)).time).atZone(ZoneOffset.UTC).toLocalDateTime(),
-                        modifyDate = Instant.ofEpochMilli(Date(cursor.getLong(9)).time).atZone(ZoneOffset.UTC).toLocalDateTime()
+                        createDate = Instant.ofEpochMilli(Date(cursor.getLong(8)).time).atZone(ZoneOffset.UTC)
+                            .toLocalDateTime(),
+                        modifyDate = Instant.ofEpochMilli(Date(cursor.getLong(9)).time).atZone(ZoneOffset.UTC)
+                            .toLocalDateTime()
                     )
                 )
                 songArtistMaps.add(
@@ -300,6 +312,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         }
     }
 }
+
 /**
  * Queue schema update
  */
@@ -315,9 +328,144 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+/**
+ * Add dateDownload to songs
+ */
 val MIGRATION_15_16 = object : Migration(15, 16) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE song ADD COLUMN dateDownload Integer NULL DEFAULT NULL")
+    }
+}
+
+/**
+ * Merge shuffled and un-shuffled queue
+ */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `format_new` (
+                `id` TEXT NOT NULL,
+                `itag` INTEGER NOT NULL,
+                `mimeType` TEXT NOT NULL,
+                `codecs` TEXT NOT NULL,
+                `bitrate` INTEGER NOT NULL,
+                `sampleRate` INTEGER,
+                `contentLength` INTEGER NOT NULL,
+                `loudnessDb` REAL,
+                `playbackTrackingUrl` TEXT,
+                PRIMARY KEY(`id`)
+            )
+        """)
+
+        db.execSQL("""
+            INSERT INTO `format_new` (`id`, `itag`, `mimeType`, `codecs`, `bitrate`, `sampleRate`, `contentLength`, `loudnessDb`, `playbackTrackingUrl`)
+            SELECT `id`, `itag`, `mimeType`, `codecs`, `bitrate`, `sampleRate`, `contentLength`, `loudnessDb`, `playbackUrl`
+            FROM `format`
+        """)
+
+        db.execSQL("DROP TABLE `format`")
+
+        db.execSQL("ALTER TABLE `format_new` RENAME TO `format`")
+
+        data class TempQueueSong(val queue: String, val song: String, val index: Long, var shuffleIndex: Long)
+
+        val shuffled = ArrayList<TempQueueSong>()
+        val unShuffled = ArrayList<TempQueueSong>()
+        val result = ArrayList<TempQueueSong>()
+
+        // get shuffled songs
+        db.query("SELECT * FROM queue_song_map WHERE shuffled = 1").use { cursor ->
+            val songIdColIndex = cursor.getColumnIndex("songId")
+            val queueIdColIndex = cursor.getColumnIndex("queueId")
+
+            var i = 0L
+            while (cursor.moveToNext()) {
+                shuffled.add(
+                    TempQueueSong(cursor.getString(queueIdColIndex), cursor.getString(songIdColIndex), i, -1)
+                )
+                i++
+            }
+
+            cursor.close()
+        }
+
+        // get unshuffled songs
+        db.query("SELECT * FROM queue_song_map WHERE shuffled = 0").use { cursor ->
+            val songIdColIndex = cursor.getColumnIndex("songId")
+            val queueIdColIndex = cursor.getColumnIndex("queueId")
+
+            var i = 0L
+            while (cursor.moveToNext()) {
+                unShuffled.add(
+                    TempQueueSong(cursor.getString(queueIdColIndex), cursor.getString(songIdColIndex), i, -1)
+                )
+                i++
+            }
+
+            cursor.close()
+        }
+
+
+        /**
+         * Assign the un-shuffled song the shuffled counterpart's index
+         */
+        while (unShuffled.isNotEmpty()) {
+            // get all songs in the same queue
+            val queue = unShuffled.first().queue
+            val songs = unShuffled.filter { it.queue == queue }.toMutableList()
+            val shuffled = shuffled.filter { it.queue == queue }.toMutableList()
+
+            var tempResult = ArrayList<TempQueueSong>()
+            // assign indexes
+            for (s in songs) {
+                val match = shuffled.find { it.song == s.song }
+
+                match.let {
+                    s.shuffleIndex = it?.index!!
+                    tempResult.add(s)
+                    shuffled.remove(match) // remove from shuffled, so duplicates are handled
+                }
+            }
+            // queues could be malformed, so only take pairs of songs
+            tempResult.removeAll { it.shuffleIndex <= -1L }
+
+            // regenerate shuffle indexes
+            val reIndexShuffle = ArrayList<TempQueueSong>()
+            reIndexShuffle.addAll(tempResult)
+            reIndexShuffle.sortBy { it.shuffleIndex }
+            reIndexShuffle.forEachIndexed { index, s -> s.shuffleIndex = index.toLong() }
+
+            unShuffled.removeAll(songs)
+            result.addAll(tempResult)
+        }
+
+        // rewrite db
+        db.execSQL("DROP TABLE queue_song_map")
+        db.execSQL("""
+            CREATE TABLE `queue_song_map` (
+                `queueId` INTEGER NOT NULL,
+                `index` INTEGER NOT NULL,
+                `shuffledIndex` INTEGER NOT NULL,
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `songId` TEXT NOT NULL,
+                FOREIGN KEY(`queueId`) REFERENCES `queue`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`songId`) REFERENCES `song`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """)
+        db.execSQL("CREATE INDEX `index_queue_song_map_queueId` ON `queue_song_map` (`queueId` ASC)")
+        db.execSQL("CREATE INDEX `index_queue_song_map_songId` ON `queue_song_map` (`songId` ASC)")
+        var i = 0L
+        result.forEach {
+            db.insert(
+                "queue_song_map", SQLiteDatabase.CONFLICT_IGNORE, contentValuesOf(
+                    "id" to i++,
+                    "queueId" to it.queue,
+                    "songId" to it.song,
+                    "`index`" to it.index,
+                    "shuffledIndex" to it.shuffleIndex
+                )
+            )
+        }
     }
 }
 
@@ -423,7 +571,8 @@ class Migration12To13 : AutoMigrationSpec {
 
             while (cursor.moveToNext()) {
                 val song = cursor.getString(songIdColIndex)
-                val timestamp = Instant.ofEpochMilli(cursor.getLong(timestampColIndex)).atZone(ZoneOffset.UTC).toLocalDateTime()
+                val timestamp =
+                    Instant.ofEpochMilli(cursor.getLong(timestampColIndex)).atZone(ZoneOffset.UTC).toLocalDateTime()
                 val year = timestamp.year
                 val month = timestamp.monthValue
 
@@ -447,5 +596,73 @@ class Migration12To13 : AutoMigrationSpec {
             }
         }
 
+        // move liked songs to playlist
+        val playlistIdLiked = generatePlaylistId()
+        var position = 0
+        db.query("SELECT * from song WHERE liked = true").use { cursor ->
+            db.insert(
+                table = "playlist",
+                conflictAlgorithm = SQLiteDatabase.CONFLICT_ABORT,
+                values = contentValuesOf(
+                    "id" to playlistIdLiked,
+                    "name" to "Liked songs (InnerTune migration)",
+                    "isLocal" to true
+                )
+            )
+
+            while (cursor.moveToNext()) {
+                val songIdColIndex = cursor.getColumnIndex("id")
+                db.insert(
+                    "playlist_song_map", SQLiteDatabase.CONFLICT_IGNORE, contentValuesOf(
+                        "playlistId" to playlistIdLiked,
+                        "songId" to cursor.getString(songIdColIndex),
+                        "position" to position
+                    )
+                )
+                position++
+            }
+        }
+
+        // move inLibrary songs to playlist
+        val playlistIdLibrary = generatePlaylistId()
+        position = 0
+        db.query("SELECT * from song WHERE inLibrary IS NOT NULL").use { cursor ->
+            db.insert(
+                table = "playlist",
+                conflictAlgorithm = SQLiteDatabase.CONFLICT_ABORT,
+                values = contentValuesOf(
+                    "id" to playlistIdLibrary,
+                    "name" to "Library songs (InnerTune migration)",
+                    "isLocal" to true
+                )
+            )
+
+            while (cursor.moveToNext()) {
+                val songIdColIndex = cursor.getColumnIndex("id")
+                db.insert(
+                    "playlist_song_map", SQLiteDatabase.CONFLICT_IGNORE, contentValuesOf(
+                        "playlistId" to playlistIdLibrary,
+                        "songId" to cursor.getString(songIdColIndex),
+                        "position" to position
+                    )
+                )
+                position++
+            }
+        }
+
     }
 }
+
+/**
+ * Nonsense migration failure
+ *
+ * Q: What? Why? playCount was never changed since it's creation
+ * A: It wasn't. But that didn't stop Room from randomly adding an id column for *some* users only...
+ *
+ * Q: That sounds like complete nonsense.
+ * A: Yep. https://github.com/OuterTune/OuterTune/discussions/359#discussioncomment-12366232
+ */
+@DeleteColumn.Entries(
+    DeleteColumn(tableName = "playCount", columnName = "id"),
+)
+class Migration17To18 : AutoMigrationSpec

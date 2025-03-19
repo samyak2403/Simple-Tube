@@ -44,6 +44,7 @@ import com.samyak.simpletube.models.DirectoryTree
 import com.samyak.simpletube.ui.utils.DEFAULT_SCAN_PATH
 import com.samyak.simpletube.ui.utils.cacheDirectoryTree
 import com.samyak.simpletube.ui.utils.getDirectoryTree
+import com.samyak.simpletube.ui.utils.uninitializedDirectoryTree
 import com.samyak.simpletube.utils.SyncUtils
 import com.samyak.simpletube.utils.dataStore
 import com.samyak.simpletube.utils.get
@@ -52,6 +53,7 @@ import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.refreshL
 import com.zionhuang.innertube.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,28 +82,29 @@ class LibrarySongsViewModel @Inject constructor(
 
     private val scanPaths = context.dataStore[ScanPathsKey]?: DEFAULT_SCAN_PATH
     private val excludedScanPaths = context.dataStore[ExcludedScanPathsKey]?: ""
-    val localSongDirectoryTree = refreshLocal(database, scanPaths.split('\n'), excludedScanPaths.split('\n'))
+    val localSongDirectoryTree: MutableStateFlow<DirectoryTree?> = getLocalSongs(database)
 
     fun syncLibrarySongs() { viewModelScope.launch(Dispatchers.IO) { syncUtils.syncRemoteSongs() } }
     fun syncLikedSongs() { viewModelScope.launch(Dispatchers.IO) { syncUtils.syncRemoteLikedSongs() } }
 
     /**
-     * Get local songs, update the one in the viewmodel
+     * Get local songs asynchronously, as a full directory tree
      *
      * @return DirectoryTree
      */
-    fun getLocalSongs(database: MusicDatabase): MutableStateFlow<DirectoryTree> {
-        val cachedTree = getDirectoryTree()
-        if (cachedTree == null) {
-            val directoryStructure =
-                refreshLocal(database, scanPaths.split('\n'),
-                    excludedScanPaths.split('\n')).value
-            localSongDirectoryTree.value = directoryStructure
-            cacheDirectoryTree(directoryStructure)
-            return MutableStateFlow(directoryStructure)
-        } else {
-            return MutableStateFlow(cachedTree)
+    fun getLocalSongs(database: MusicDatabase): MutableStateFlow<DirectoryTree?> {
+        CoroutineScope(Dispatchers.IO).launch {
+            val directoryStructure: DirectoryTree
+            var cachedTree = getDirectoryTree().value
+            if (cachedTree == uninitializedDirectoryTree) {
+                directoryStructure = refreshLocal(database, scanPaths.split('\n'), excludedScanPaths.split('\n'))
+                cacheDirectoryTree(directoryStructure)
+            } else {
+                directoryStructure = cachedTree!!
+            }
         }
+
+        return getDirectoryTree()
     }
 
     private fun getSyncedSongs(context: Context, database: MusicDatabase): StateFlow<List<Song>?> {
@@ -257,9 +260,9 @@ class LibraryViewModel @Inject constructor(
     val isSyncingRemoteArtists = syncUtils.isSyncingRemoteArtists
     val isSyncingRemotePlaylists = syncUtils.isSyncingRemotePlaylists
 
-    var artists = database.artistsInLibraryAsc().stateIn(viewModelScope, SharingStarted.Lazily, null)
-    var albums = database.albumsInLibraryAsc().stateIn(viewModelScope, SharingStarted.Lazily, null)
-    var playlists = database.playlistInLibraryAsc().stateIn(viewModelScope, SharingStarted.Lazily, null)
+    var artists = database.artistsBookmarkedAsc().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    var albums = database.albumsLikedAsc().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    var playlists = database.playlistInLibraryAsc().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val allItems = context.dataStore.data
         .map {
@@ -268,8 +271,8 @@ class LibraryViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { (sortType, descending) ->
             combine(artists, albums, playlists) { artists, albums, playlists ->
-                val items = artists?.plus(albums)?.plus(playlists)
-                items?.sortedBy { item ->
+                val items = artists + albums + playlists
+                items.sortedBy { item ->
                     when (sortType) {
                         LibrarySortType.CREATE_DATE -> when (item) {
                             is Album -> item.album.bookmarkedAt
@@ -285,10 +288,10 @@ class LibraryViewModel @Inject constructor(
                             else -> ""
                         }
                     }.toString()
-                }.let { if (descending) it?.reversed() else it }
+                }.let { if (descending) it.reversed() else it }
             }
         }
-        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 }
 
 @HiltViewModel

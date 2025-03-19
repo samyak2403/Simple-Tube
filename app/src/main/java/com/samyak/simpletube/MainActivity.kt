@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -22,6 +23,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -75,9 +78,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -93,7 +98,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -115,7 +119,6 @@ import com.samyak.simpletube.constants.DynamicThemeKey
 import com.samyak.simpletube.constants.EnabledTabsKey
 import com.samyak.simpletube.constants.ExcludedScanPathsKey
 import com.samyak.simpletube.constants.FirstSetupPassed
-import com.samyak.simpletube.constants.LastPosKey
 import com.samyak.simpletube.constants.LibraryFilter
 import com.samyak.simpletube.constants.LibraryFilterKey
 import com.samyak.simpletube.constants.LocalLibraryEnableKey
@@ -125,6 +128,7 @@ import com.samyak.simpletube.constants.NavigationBarAnimationSpec
 import com.samyak.simpletube.constants.NavigationBarHeight
 import com.samyak.simpletube.constants.NewInterfaceKey
 import com.samyak.simpletube.constants.PauseSearchHistoryKey
+import com.samyak.simpletube.constants.PersistentQueueKey
 import com.samyak.simpletube.constants.PlayerBackgroundStyleKey
 import com.samyak.simpletube.constants.PureBlackKey
 import com.samyak.simpletube.constants.ScanPathsKey
@@ -157,7 +161,7 @@ import com.samyak.simpletube.ui.screens.HistoryScreen
 import com.samyak.simpletube.ui.screens.HomeScreen
 import com.samyak.simpletube.ui.screens.LoginScreen
 import com.samyak.simpletube.ui.screens.MoodAndGenresScreen
-import com.samyak.simpletube.ui.screens.NewReleaseScreen
+import com.samyak.simpletube.ui.screens.BrowseScreen
 import com.samyak.simpletube.ui.screens.Screens
 import com.samyak.simpletube.ui.screens.SetupWizard
 import com.samyak.simpletube.ui.screens.StatsScreen
@@ -187,7 +191,6 @@ import com.samyak.simpletube.ui.screens.settings.DarkMode
 import com.samyak.simpletube.ui.screens.settings.ExperimentalSettings
 import com.samyak.simpletube.ui.screens.settings.LocalPlayerSettings
 import com.samyak.simpletube.ui.screens.settings.LyricsSettings
-import com.samyak.simpletube.ui.screens.settings.MEDIA_PERMISSION_LEVEL
 import com.samyak.simpletube.ui.screens.settings.NavigationTab
 import com.samyak.simpletube.ui.screens.settings.NavigationTabNew
 import com.samyak.simpletube.ui.screens.settings.PlayerBackgroundStyle
@@ -200,21 +203,21 @@ import com.samyak.simpletube.ui.theme.DefaultThemeColor
 import com.samyak.simpletube.ui.theme.OuterTuneTheme
 import com.samyak.simpletube.ui.theme.extractThemeColor
 import com.samyak.simpletube.ui.utils.DEFAULT_SCAN_PATH
+import com.samyak.simpletube.ui.utils.MEDIA_PERMISSION_LEVEL
 import com.samyak.simpletube.ui.utils.appBarScrollBehavior
-import com.samyak.simpletube.ui.utils.cacheDirectoryTree
-import com.samyak.simpletube.ui.utils.getLocalThumbnail
+import com.samyak.simpletube.ui.utils.imageCache
 import com.samyak.simpletube.ui.utils.resetHeightOffset
 import com.samyak.simpletube.utils.ActivityLauncherHelper
 import com.samyak.simpletube.utils.NetworkConnectivityObserver
 import com.samyak.simpletube.utils.SyncUtils
 import com.samyak.simpletube.utils.dataStore
 import com.samyak.simpletube.utils.get
-import com.samyak.simpletube.utils.purgeCache
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
 import com.samyak.simpletube.utils.reportException
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner
 import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.destroyScanner
+import com.samyak.simpletube.utils.scanners.LocalMediaScanner.Companion.scannerActive
 import com.samyak.simpletube.utils.scanners.ScannerAbortException
 import com.samyak.simpletube.utils.urlEncode
 import com.valentinilk.shimmer.LocalShimmerTheme
@@ -225,9 +228,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.net.URLDecoder
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -242,6 +243,7 @@ class MainActivity : ComponentActivity() {
     lateinit var syncUtils: SyncUtils
 
     lateinit var activityLauncher: ActivityLauncherHelper
+    lateinit var connectivityObserver: NetworkConnectivityObserver
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
     private val serviceConnection = object : ServiceConnection {
@@ -269,65 +271,36 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startService(Intent(this, MusicService::class.java))
-        } else {
-            startService(Intent(this, MusicService::class.java))
-        }
+        startService(Intent(this, MusicService::class.java))
         bindService(Intent(this, MusicService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
-    override fun onStop() {
-        unbindService(serviceConnection)
-        super.onStop()
-    }
-
-//    override fun onDestroy() {
-//        super.onDestroy()
-//        runBlocking {
-//            // save last position
-//            dataStore.edit { settings ->
-//                settings[LastPosKey] = playerConnection!!.player.currentPosition
-//            }
-//        }
-//
-//        if (dataStore.get(StopMusicOnTaskClearKey, false) && playerConnection?.isPlaying?.value == true
-//            && isFinishing
-//        ) {
-//            stopService(Intent(this, MusicService::class.java))
-//            unbindService(serviceConnection)
-//            playerConnection = null
-//        }
-//    }
-
     override fun onDestroy() {
+        /*
+         * While music is playing:
+         *      StopMusicOnTaskClearKey true: clearing from recent apps will kill service
+         *      StopMusicOnTaskClearKey false: clearing from recent apps will NOT kill service
+         * While music is not playing: 
+         *      Service will never be automatically killed
+         *
+         * Regardless of what happens, queues and last position are saves
+         */
         super.onDestroy()
+        unbindService(serviceConnection)
 
-        // Save the last position in DataStore safely
-        playerConnection?.let { connection ->
-            lifecycleScope.launch {
-                try {
-                    dataStore.edit { settings ->
-                        settings[LastPosKey] = connection.player.currentPosition
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace() // Log the error for debugging purposes
-                }
-            }
-        }
+        if (dataStore.get(StopMusicOnTaskClearKey, false) && playerConnection?.isPlaying?.value == true
+            && isFinishing
+        ) {
+            if (dataStore.get(PersistentQueueKey, true)) {
+//                stopService(Intent(this, MusicService::class.java)) // Believe me, this doesn't actually stop
+                playerConnection?.service?.onDestroy()
 
-        // Handle stopping the music service safely
-        if (isFinishing && dataStore.get(StopMusicOnTaskClearKey, false) == true) {
-            playerConnection?.let { connection ->
-                if (connection.isPlaying.value == true) {
-                    stopService(Intent(this, MusicService::class.java))
-                }
+                playerConnection = null
             }
-            unbindService(serviceConnection) // Unbind the service
-            playerConnection = null // Clean up the reference
+        } else {
+            playerConnection?.service?.saveQueueToDisk()
         }
     }
-
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @SuppressLint(
@@ -342,8 +315,7 @@ class MainActivity : ComponentActivity() {
         activityLauncher = ActivityLauncherHelper(this)
 
         setContent {
-            val connectivityObserver = NetworkConnectivityObserver(this)
-            val isNetworkConnected by connectivityObserver.networkStatus.collectAsState(false)
+            val haptic = LocalHapticFeedback.current
 
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
@@ -365,6 +337,14 @@ class MainActivity : ComponentActivity() {
                 defaultValue = PlayerBackgroundStyle.DEFAULT
             )
 
+            try {
+                connectivityObserver.unregister()
+            } catch (e: UninitializedPropertyAccessException) {
+                // lol
+            }
+            connectivityObserver = NetworkConnectivityObserver(this@MainActivity)
+            val isNetworkConnected by connectivityObserver.networkStatus.collectAsState(true)
+
             LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme) {
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
@@ -384,7 +364,7 @@ class MainActivity : ComponentActivity() {
                                 (result.drawable as? BitmapDrawable)?.bitmap?.extractThemeColor()
                                     ?: DefaultThemeColor
                             } else {
-                                getLocalThumbnail(song.localPath)?.extractThemeColor()
+                                imageCache.getLocalThumbnail(song.localPath)?.extractThemeColor()
                                     ?: DefaultThemeColor
                             }
                         }
@@ -413,54 +393,60 @@ class MainActivity : ComponentActivity() {
                 downloadUtil.resumeDownloadsOnStart()
 
                 CoroutineScope(Dispatchers.IO).launch {
+                    val perms = checkSelfPermission(MEDIA_PERMISSION_LEVEL)
                     // Check if the permissions for local media access
-                    if (firstSetupPassed && localLibEnable && autoScan
-                        && checkSelfPermission(MEDIA_PERMISSION_LEVEL) == PackageManager.PERMISSION_GRANTED) {
+                    if (!scannerActive.value && autoScan && firstSetupPassed && localLibEnable) {
+                        if (perms == PackageManager.PERMISSION_GRANTED) {
+                            // equivalent to (quick scan)
+                            try {
+                                withContext(Dispatchers.Main) {
+                                    playerConnection?.player?.pause()
+                                }
+                                val scanner = LocalMediaScanner.getScanner(this@MainActivity, scannerImpl)
+                                val directoryStructure = scanner.scanLocal(
+                                    database,
+                                    scanPaths.split('\n'),
+                                    excludedScanPaths.split('\n'),
+                                    pathsOnly = true
+                                ).value
+                                scanner.quickSync(
+                                    database, directoryStructure.toList(), scannerSensitivity,
+                                    strictExtensions,
+                                )
 
-                        // equivalent to (quick scan)
-                        try {
-                            val scanner = LocalMediaScanner.getScanner(this@MainActivity, scannerImpl)
-                            val directoryStructure = scanner.scanLocal(
-                                database,
-                                scanPaths.split('\n'),
-                                excludedScanPaths.split('\n'),
-                                pathsOnly = true
-                            ).value
-                            scanner.quickSync(
-                                database, directoryStructure.toList(), scannerSensitivity,
-                                strictExtensions,
-                            )
-
-                            // start artist linking job
-                            if (lookupYtmArtists) {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        scanner.localToRemoteArtist(database)
-                                    } catch (e: ScannerAbortException) {
-                                        Looper.prepare()
-                                        Toast.makeText(
-                                            this@MainActivity,
-                                            "Scanner (background task) failed: ${e.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                // start artist linking job
+                                if (lookupYtmArtists && !scannerActive.value) {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            scanner.localToRemoteArtist(database)
+                                        } catch (e: ScannerAbortException) {
+                                            Looper.prepare()
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "${this@MainActivity.getString(R.string.scanner_scan_fail)}: ${e.message}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
                                     }
                                 }
+                            } catch (e: ScannerAbortException) {
+                                Looper.prepare()
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "${this@MainActivity.getString(R.string.scanner_scan_fail)}: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } finally {
+                                destroyScanner()
                             }
-                        } catch (e: ScannerAbortException) {
-                            Looper.prepare()
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Scanner failed: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } finally {
-                            destroyScanner()
+
+                            // post scan actions
+                            imageCache.purgeCache()
+                            playerConnection?.service?.initQueue()
+                        } else if (perms == PackageManager.PERMISSION_DENIED) {
+                            // Request the permission using the permission launcher
+                            permissionLauncher.launch(MEDIA_PERMISSION_LEVEL)
                         }
-                        purgeCache() // juuuust to be sure
-                        cacheDirectoryTree(null)
-                    } else if (checkSelfPermission(MEDIA_PERMISSION_LEVEL) == PackageManager.PERMISSION_DENIED) {
-                        // Request the permission using the permission launcher
-                        permissionLauncher.launch(MEDIA_PERMISSION_LEVEL)
                     }
                 }
             }
@@ -480,7 +466,8 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsState()
+                    val inSelectMode =
+                        navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
 
                     val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
@@ -512,6 +499,58 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+
+                    val coroutineScope = rememberCoroutineScope()
+                    var sharedSong: SongItem? by remember {
+                        mutableStateOf(null)
+                    }
+
+                    /**
+                     * Directly navigate to a YouTube page given an YouTube url
+                     */
+                    fun youtubeNavigator(uri: Uri): Boolean {
+                        when (val path = uri.pathSegments.firstOrNull()) {
+                            "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
+                                if (playlistId.startsWith("OLAK5uy_")) {
+                                    coroutineScope.launch {
+                                        YouTube.albumSongs(playlistId).onSuccess { songs ->
+                                            songs.firstOrNull()?.album?.id?.let { browseId ->
+                                                navController.navigate("album/$browseId")
+                                            }
+                                        }.onFailure {
+                                            reportException(it)
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate("online_playlist/$playlistId")
+                                }
+                            }
+
+                            "channel", "c" -> uri.lastPathSegment?.let { artistId ->
+                                navController.navigate("artist/$artistId")
+                            }
+
+                            else -> when {
+                                path == "watch" -> uri.getQueryParameter("v")
+                                uri.host == "youtu.be" -> path
+                                else -> return false
+                            }?.let { videoId ->
+                                coroutineScope.launch {
+                                    withContext(Dispatchers.IO) {
+                                        YouTube.queue(listOf(videoId))
+                                    }.onSuccess {
+                                        sharedSong = it.firstOrNull()
+                                    }.onFailure {
+                                        reportException(it)
+                                    }
+                                }
+                            }
+                        }
+
+                        return true
+                    }
+
+
                     val (query, onQueryChange) = rememberSaveable(stateSaver = TextFieldValue.Saver) {
                         mutableStateOf(TextFieldValue())
                     }
@@ -534,10 +573,14 @@ class MainActivity : ComponentActivity() {
                     val onSearch: (String) -> Unit = {
                         if (it.isNotEmpty()) {
                             onActiveChange(false)
-                            navController.navigate("search/${it.urlEncode()}")
-                            if (dataStore[PauseSearchHistoryKey] != true) {
-                                database.query {
-                                    insert(SearchHistory(query = it))
+                            if (youtubeNavigator(it.toUri())) {
+                                // don't do anything
+                            } else {
+                                navController.navigate("search/${it.urlEncode()}")
+                                if (dataStore[PauseSearchHistoryKey] != true) {
+                                    database.query {
+                                        insert(SearchHistory(query = it))
+                                    }
                                 }
                             }
                         }
@@ -559,7 +602,7 @@ class MainActivity : ComponentActivity() {
 
                     fun getNavPadding(): Dp {
                         return if (shouldShowNavigationBar) {
-                            if (slimNav) 48.dp else 64.dp
+                            if (slimNav) 52.dp else 68.dp
                         } else {
                             0.dp
                         }
@@ -605,7 +648,7 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(navBackStackEntry) {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
                             val searchQuery = withContext(Dispatchers.IO) {
-                                URLDecoder.decode(navBackStackEntry?.arguments?.getString("query")!!, "UTF-8")
+                                navBackStackEntry?.arguments?.getString("query")!!
                             }
                             onQueryChange(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
                         } else if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
@@ -662,51 +705,12 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val coroutineScope = rememberCoroutineScope()
-                    var sharedSong: SongItem? by remember {
-                        mutableStateOf(null)
-                    }
                     DisposableEffect(Unit) {
                         val listener = Consumer<Intent> { intent ->
                             val uri =
-                                intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return@Consumer
-                            when (val path = uri.pathSegments.firstOrNull()) {
-                                "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
-                                    if (playlistId.startsWith("OLAK5uy_")) {
-                                        coroutineScope.launch {
-                                            YouTube.albumSongs(playlistId).onSuccess { songs ->
-                                                songs.firstOrNull()?.album?.id?.let { browseId ->
-                                                    navController.navigate("album/$browseId")
-                                                }
-                                            }.onFailure {
-                                                reportException(it)
-                                            }
-                                        }
-                                    } else {
-                                        navController.navigate("online_playlist/$playlistId")
-                                    }
-                                }
-
-                                "channel", "c" -> uri.lastPathSegment?.let { artistId ->
-                                    navController.navigate("artist/$artistId")
-                                }
-
-                                else -> when {
-                                    path == "watch" -> uri.getQueryParameter("v")
-                                    uri.host == "youtu.be" -> path
-                                    else -> null
-                                }?.let { videoId ->
-                                    coroutineScope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            YouTube.queue(listOf(videoId))
-                                        }.onSuccess {
-                                            sharedSong = it.firstOrNull()
-                                        }.onFailure {
-                                            reportException(it)
-                                        }
-                                    }
-                                }
-                            }
+                                intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri()
+                                ?: return@Consumer
+                            youtubeNavigator(uri)
                         }
 
                         addOnNewIntentListener(listener)
@@ -721,7 +725,7 @@ class MainActivity : ComponentActivity() {
                         LocalDownloadUtil provides downloadUtil,
                         LocalShimmerTheme provides ShimmerTheme,
                         LocalSyncUtils provides syncUtils,
-                        LocalIsNetworkConnected provides isNetworkConnected
+                        LocalNetworkConnected provides isNetworkConnected
                     ) {
                         Scaffold(
                             topBar = {
@@ -754,7 +758,9 @@ class MainActivity : ComponentActivity() {
                                                     when {
                                                         active -> onActiveChange(false)
 
-                                                        !active && navBackStackEntry?.destination?.route?.startsWith("search") == true -> {
+                                                        !active && navBackStackEntry?.destination?.route?.startsWith(
+                                                            "search"
+                                                        ) == true -> {
                                                             navController.navigateUp()
                                                         }
 
@@ -764,7 +770,10 @@ class MainActivity : ComponentActivity() {
                                             ) {
                                                 Icon(
                                                     imageVector =
-                                                    if (active || navBackStackEntry?.destination?.route?.startsWith("search") == true) {
+                                                    if (active || navBackStackEntry?.destination?.route?.startsWith(
+                                                            "search"
+                                                        ) == true
+                                                    ) {
                                                         Icons.AutoMirrored.Rounded.ArrowBack
                                                     } else {
                                                         Icons.Rounded.Search
@@ -844,10 +853,14 @@ class MainActivity : ComponentActivity() {
                                                     onQueryChange = onQueryChange,
                                                     navController = navController,
                                                     onSearch = {
-                                                        navController.navigate("search/${it.urlEncode()}")
-                                                        if (dataStore[PauseSearchHistoryKey] != true) {
-                                                            database.query {
-                                                                insert(SearchHistory(query = it))
+                                                        if (youtubeNavigator(it.toUri())) {
+                                                            return@OnlineSearchScreen
+                                                        } else {
+                                                            navController.navigate("search/${it.urlEncode()}")
+                                                            if (dataStore[PauseSearchHistoryKey] != true) {
+                                                                database.query {
+                                                                    insert(SearchHistory(query = it))
+                                                                }
                                                             }
                                                         }
                                                     },
@@ -949,7 +962,10 @@ class MainActivity : ComponentActivity() {
                                                 },
                                                 onClick = {
                                                     if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
-                                                        navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
+                                                        navBackStackEntry?.savedStateHandle?.set(
+                                                            "scrollToTop",
+                                                            true
+                                                        )
                                                         coroutineScope.launch {
                                                             searchBarScrollBehavior.state.resetHeightOffset()
                                                         }
@@ -962,6 +978,8 @@ class MainActivity : ComponentActivity() {
                                                             restoreState = true
                                                         }
                                                     }
+
+                                                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                                                 }
                                             )
                                         }
@@ -1009,28 +1027,16 @@ class MainActivity : ComponentActivity() {
                                     else -> Screens.Home
                                 }.route,
                                 enterTransition = {
-                                    slideIntoContainer(
-                                        transitionDirection,
-                                        animationSpec = tween(200)
-                                    )
+                                    fadeIn(tween(250)) + slideInHorizontally { it / 2 }
                                 },
                                 exitTransition = {
-                                    slideOutOfContainer(
-                                        transitionDirection,
-                                        animationSpec = tween(200)
-                                    )
+                                    fadeOut(tween(200)) + slideOutHorizontally { -it / 2 }
                                 },
                                 popEnterTransition = {
-                                    slideIntoContainer(
-                                        AnimatedContentTransitionScope.SlideDirection.Right,
-                                        animationSpec = tween(200)
-                                    )
+                                    fadeIn(tween(250)) + slideInHorizontally { -it / 2 }
                                 },
                                 popExitTransition = {
-                                    slideOutOfContainer(
-                                        AnimatedContentTransitionScope.SlideDirection.Right,
-                                        animationSpec = tween(200)
-                                    )
+                                    fadeOut(tween(200)) + slideOutHorizontally { it / 2 }
                                 },
                                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
                             ) {
@@ -1067,10 +1073,21 @@ class MainActivity : ComponentActivity() {
                                 composable("account") {
                                     AccountScreen(navController, scrollBehavior)
                                 }
-                                composable("new_release") {
-                                    NewReleaseScreen(navController, scrollBehavior)
-                                }
 
+                                composable(
+                                    route = "browse/{browseId}",
+                                    arguments = listOf(
+                                        navArgument("browseId") {
+                                            type = NavType.StringType
+                                        }
+                                    )
+                                ) {
+                                    BrowseScreen(
+                                        navController,
+                                        scrollBehavior,
+                                        it.arguments?.getString("browseId")
+                                    )
+                                }
                                 composable(
                                     route = "search/{query}",
                                     arguments = listOf(
@@ -1221,7 +1238,7 @@ class MainActivity : ComponentActivity() {
                                     LoginScreen(navController)
                                 }
 
-                                composable("setup_wizard",) {
+                                composable("setup_wizard") {
                                     SetupWizard(navController)
                                 }
                             }
@@ -1298,4 +1315,4 @@ val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error(
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
 val LocalSyncUtils = staticCompositionLocalOf<SyncUtils> { error("No SyncUtils provided") }
-val LocalIsNetworkConnected = staticCompositionLocalOf<Boolean> { error("No Network Status provided") }
+val LocalNetworkConnected = staticCompositionLocalOf<Boolean> { error("No Network Status provided") }

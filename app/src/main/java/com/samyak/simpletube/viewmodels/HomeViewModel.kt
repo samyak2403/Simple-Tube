@@ -3,11 +3,11 @@ package com.samyak.simpletube.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.samyak.simpletube.constants.PlaylistFilter
+import com.samyak.simpletube.constants.PlaylistSortType
 import com.samyak.simpletube.db.MusicDatabase
 import com.samyak.simpletube.db.entities.Album
-import com.samyak.simpletube.db.entities.Artist
 import com.samyak.simpletube.db.entities.LocalItem
-import com.samyak.simpletube.db.entities.Playlist
 import com.samyak.simpletube.db.entities.Song
 import com.samyak.simpletube.extensions.isSyncEnabled
 import com.samyak.simpletube.models.SimilarRecommendation
@@ -24,9 +24,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -46,8 +46,10 @@ class HomeViewModel @Inject constructor(
     val accountPlaylists = MutableStateFlow<List<PlaylistItem>?>(null)
     val homePage = MutableStateFlow<HomePage?>(null)
     val explorePage = MutableStateFlow<ExplorePage?>(null)
-    val recentActivity = MutableStateFlow<List<YTItem>?>(null)
-    val recentPlaylistsDb = MutableStateFlow<List<Playlist>?>(null)
+    val playlists = database.playlists(PlaylistFilter.LIBRARY, PlaylistSortType.NAME, true)
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+    val recentActivity = database.recentActivity()
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
@@ -129,43 +131,15 @@ class HomeViewModel @Inject constructor(
         }
 
         YouTube.explore().onSuccess { page ->
-            val artists: Set<String>
-            val favouriteArtists: Set<String>
-            database.artistsInLibraryAsc().first().let { list ->
-                artists = list.map(Artist::id).toHashSet()
-                favouriteArtists = list
-                    .filter { it.artist.bookmarkedAt != null }
-                    .map { it.id }
-                    .toHashSet()
-            }
-            explorePage.value = page.copy(
-                newReleaseAlbums = page.newReleaseAlbums
-                    .sortedBy { album ->
-                        if (album.artists.orEmpty().any { it.id in favouriteArtists }) 0
-                        else if (album.artists.orEmpty().any { it.id in artists }) 1
-                        else 2
-                    }
-            )
+            explorePage.value = page
         }.onFailure {
             reportException(it)
         }
 
-        YouTube.libraryRecentActivity().onSuccess { page ->
-            recentActivity.value = page.items.take(9).drop(1)
-
-            recentActivity.value!!.filterIsInstance<PlaylistItem>().forEach { item ->
-                val playlist = database.playlistByBrowseId(item.id).firstOrNull()
-                if (playlist != null) {
-                    recentPlaylistsDb.update { list ->
-                        list?.plusElement(playlist) ?: listOf(playlist)
-                    }
-                }
-            }
-        }
+        syncUtils.syncRecentActivity()
 
         allYtItems.value = similarRecommendations.value?.flatMap { it.items }.orEmpty() +
-                homePage.value?.sections?.flatMap { it.items }.orEmpty() +
-                explorePage.value?.newReleaseAlbums.orEmpty()
+                homePage.value?.sections?.flatMap { it.items }.orEmpty()
 
         isLoading.value = false
     }

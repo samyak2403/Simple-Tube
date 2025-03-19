@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 1,
-      "versionName": "0.1.0",
-      "outputFile": "app-universal-release.apk"
+      "versionCode": 2,
+      "versionName": "0.2.0",
+      "outputFile": "OuterTune-0.2.0-universal-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,16 +22,16 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/app-universal-release.dm"
+        "baselineProfiles/1/OuterTune-0.2.0-universal-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/app-universal-release.dm"
+        "baselineProfiles/0/OuterTune-0.2.0-universal-release.dm"
       ]
     }
   ],
-  "minSdkVersionForDexing": 24
+  "minSdkVersionForDexing": 26
 }

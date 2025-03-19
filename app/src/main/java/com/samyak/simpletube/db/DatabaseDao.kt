@@ -24,6 +24,8 @@ import com.samyak.simpletube.db.entities.GenreEntity
 import com.samyak.simpletube.db.entities.LyricsEntity
 import com.samyak.simpletube.db.entities.QueueEntity
 import com.samyak.simpletube.db.entities.QueueSongMap
+import com.samyak.simpletube.db.entities.RecentActivityItem
+import com.samyak.simpletube.db.entities.RecentActivityType
 import com.samyak.simpletube.db.entities.RelatedSongMap
 import com.samyak.simpletube.db.entities.SearchHistory
 import com.samyak.simpletube.db.entities.Song
@@ -35,7 +37,11 @@ import com.samyak.simpletube.extensions.toSQLiteQuery
 import com.samyak.simpletube.models.MediaMetadata
 import com.samyak.simpletube.models.MultiQueueObject
 import com.samyak.simpletube.models.toMediaMetadata
+import com.zionhuang.innertube.models.AlbumItem
+import com.zionhuang.innertube.models.ArtistItem
+import com.zionhuang.innertube.models.PlaylistItem
 import com.zionhuang.innertube.models.SongItem
+import com.zionhuang.innertube.models.YTItem
 import com.zionhuang.innertube.pages.AlbumPage
 import kotlinx.coroutines.flow.Flow
 
@@ -271,8 +277,22 @@ interface DatabaseDao : SongsDao, AlbumsDao, ArtistsDao, PlaylistsDao, QueueDao 
     fun nukeLocalGenre()
 
     @Transaction
-    @Query("DELETE FROM format")
-    fun nukeFormatEntities()
+    @Query("""
+DELETE FROM format 
+WHERE format.id IS NOT NULL 
+AND NOT EXISTS (
+    SELECT 1 FROM song WHERE song.id = format.id
+);
+    """)
+    fun nukeDanglingFormatEntities()
+
+    @Transaction
+    @Query("DELETE FROM lyrics")
+    fun nukeLocalLyrics()
+
+    @Transaction
+    @Query("DELETE FROM playlist WHERE isLocal = 0")
+    fun nukeRemotePlaylists()
 
     @Transaction
     fun nukeLocalData() {
@@ -294,7 +314,7 @@ interface DatabaseDao : SongsDao, AlbumsDao, ArtistsDao, PlaylistsDao, QueueDao 
      */
     @Transaction
     fun saveQueue(mq: MultiQueueObject) {
-        if (mq.queue.isEmpty() || mq.unShuffled.isEmpty()) {
+        if (mq.queue.isEmpty()) {
             return
         }
 
@@ -304,31 +324,27 @@ interface DatabaseDao : SongsDao, AlbumsDao, ArtistsDao, PlaylistsDao, QueueDao 
                 title = mq.title,
                 shuffled = mq.shuffled,
                 queuePos = mq.queuePos,
-                index = mq.index
+                index = mq.index,
+                playlistId = mq.playlistId
             )
         )
 
         deleteAllQueueSongs(mq.id)
         // insert songs
-        mq.unShuffled.forEach {
-            insert(it)
-            insert(
-                QueueSongMap(
-                    queueId = mq.id,
-                    songId = it.id,
-                    shuffled = false
-                )
-            )
-        }
 
-        mq.queue.forEach {
+        // why does kotlin not have for i loop???
+        var i = 0
+        while (i < mq.getSize()) {
+            insert(mq.queue[i]) // make sure song exists
             insert(
                 QueueSongMap(
                     queueId = mq.id,
-                    songId = it.id,
-                    shuffled = true
+                    songId = mq.queue[i].id,
+                    index = i.toLong(),
+                    shuffledIndex = mq.queue[i].shuffleIndex.toLong()
                 )
             )
+            i ++
         }
     }
 
@@ -362,4 +378,73 @@ interface DatabaseDao : SongsDao, AlbumsDao, ArtistsDao, PlaylistsDao, QueueDao 
             saveQueue(mq)
         }
     }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insert(item: RecentActivityItem)
+
+    @Delete
+    fun delete(item: RecentActivityItem)
+
+    @Query("DELETE FROM RecentActivityItem")
+    fun clearRecentActivity()
+
+    @Transaction
+    fun insertRecentActivityItem(item: YTItem) {
+        when (item) {
+            is AlbumItem -> {
+                insert(
+                    RecentActivityItem(
+                        id = item.browseId,
+                        title = item.title,
+                        thumbnail = item.thumbnail,
+                        explicit = item.explicit,
+                        shareLink = item.shareLink,
+                        type = RecentActivityType.ALBUM,
+                        playlistId = item.playlistId,
+                        radioPlaylistId = null,
+                        shufflePlaylistId = null
+                    )
+                )
+            }
+
+            is PlaylistItem -> {
+                insert(
+                    RecentActivityItem(
+                        id = item.id,
+                        title = item.title,
+                        thumbnail = item.thumbnail,
+                        explicit = item.explicit,
+                        shareLink = item.shareLink,
+                        type = RecentActivityType.PLAYLIST,
+                        playlistId = item.id,
+                        radioPlaylistId = item.radioEndpoint?.playlistId,
+                        shufflePlaylistId = item.shuffleEndpoint?.playlistId
+                    )
+                )
+            }
+
+            is ArtistItem -> {
+                insert(
+                    RecentActivityItem(
+                        id = item.id,
+                        title = item.title,
+                        thumbnail = item.thumbnail,
+                        explicit = item.explicit,
+                        shareLink = item.shareLink,
+                        type = RecentActivityType.ARTIST,
+                        playlistId = item.playEndpoint?.playlistId,
+                        radioPlaylistId = item.radioEndpoint?.playlistId,
+                        shufflePlaylistId = item.shuffleEndpoint?.playlistId
+                    )
+                )
+            }
+
+            else -> {
+                // do nothing
+            }
+        }
+    }
+
+    @Query("SELECT * FROM RecentActivityItem ORDER BY date DESC")
+    fun recentActivity(): Flow<List<RecentActivityItem>>
 }

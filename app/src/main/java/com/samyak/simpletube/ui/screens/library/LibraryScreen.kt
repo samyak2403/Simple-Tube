@@ -1,8 +1,6 @@
 package com.samyak.simpletube.ui.screens.library
 
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -38,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEachIndexed
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -62,7 +59,6 @@ import com.samyak.simpletube.db.entities.Album
 import com.samyak.simpletube.db.entities.Artist
 import com.samyak.simpletube.db.entities.Playlist
 import com.samyak.simpletube.db.entities.PlaylistEntity
-import com.samyak.simpletube.extensions.move
 import com.samyak.simpletube.ui.component.AutoPlaylistGridItem
 import com.samyak.simpletube.ui.component.AutoPlaylistListItem
 import com.samyak.simpletube.ui.component.ChipsLazyRow
@@ -81,9 +77,7 @@ import com.samyak.simpletube.utils.decodeTabString
 import com.samyak.simpletube.utils.rememberEnumPreference
 import com.samyak.simpletube.utils.rememberPreference
 import com.samyak.simpletube.viewmodels.LibraryViewModel
-import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
     navController: NavController,
@@ -155,45 +149,17 @@ fun LibraryScreen(
             chips.add(filter to filterString)
     }
 
-    val animatorDurationScale = Settings.Global.getFloat(context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE, 1.0f).toLong()
-
-    suspend fun animationBasedDelay(value: Long) {
-        delay(value * animatorDurationScale)
-    }
-
-    // Update the filters list in a proper way so that the animations of the LazyRow can work.
     LaunchedEffect(filter) {
-        val filterIndex = defaultFilter.indexOf(defaultFilter.find { it.first == filter })
-        val currentPairIndex = if (chips.size > 0) defaultFilter.indexOf(chips[0]) else -1
-        val currentPair = if (chips.size > 0) chips[0] else null
-
         if (filter == LibraryFilter.ALL) {
-            defaultFilter.reversed().fastForEachIndexed { index, it ->
-                val curFilterIndex = defaultFilter.indexOf(it)
-                if (!chips.contains(it)) {
-                    chips.add(0, it)
-                    if (currentPairIndex > curFilterIndex) animationBasedDelay(100)
-                    else {
-                        currentPair?.let {
-                            animationBasedDelay(2)
-                            chips.move(chips.indexOf(it), 0)
-                        }
-                        animationBasedDelay(80 + (index * 30).toLong())
-                    }
-                }
+            defaultFilter.forEachIndexed { index, it ->
+                if (!chips.contains(it)) chips.add(index, it)
             }
-            animationBasedDelay(100)
             filterSelected = LibraryFilter.ALL
         } else {
             filterSelected = filter
             chips.filter { it.first != filter }
-                .onEachIndexed { index, it ->
-                    if (chips.contains(it)) {
-                        chips.remove(it)
-                        if (index > filterIndex) animationBasedDelay(150 + 30 * index.toLong())
-                        else animationBasedDelay(80)
-                    }
+                .onEach {
+                    if (chips.contains(it)) chips.remove(it)
                 }
         }
     }
@@ -361,12 +327,12 @@ fun LibraryScreen(
                                 }
                             }
 
-                            allItems?.let { allItems ->
-                                if (allItems.isEmpty()) {
+                            allItems.let { allItems ->
+                                if (allItems.isEmpty() && !showLikedAndDownloadedPlaylist) {
                                     item {
                                         EmptyPlaceholder(
                                             icon = Icons.AutoMirrored.Rounded.List,
-                                            text = stringResource(R.string.library_album_empty),
+                                            text = stringResource(R.string.library_empty),
                                             modifier = Modifier.animateItem()
                                         )
                                     }
@@ -474,12 +440,12 @@ fun LibraryScreen(
                                 }
                             }
 
-                            allItems?.let { allItems ->
-                                if (allItems.isEmpty()) {
+                            allItems.let { allItems ->
+                                if (allItems.isEmpty() && !showLikedAndDownloadedPlaylist) {
                                     item {
                                         EmptyPlaceholder(
                                             icon = Icons.AutoMirrored.Rounded.List,
-                                            text = stringResource(R.string.library_album_empty),
+                                            text = stringResource(R.string.library_empty),
                                             modifier = Modifier.animateItem()
                                         )
                                     }

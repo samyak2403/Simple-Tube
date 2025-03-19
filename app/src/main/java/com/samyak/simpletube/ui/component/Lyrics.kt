@@ -39,11 +39,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.DarkModeKey
+import com.samyak.simpletube.constants.LyricFontSizeKey
 import com.samyak.simpletube.constants.LyricTrimKey
 import com.samyak.simpletube.constants.LyricsTextPositionKey
 import com.samyak.simpletube.constants.MultilineLrcKey
@@ -82,6 +85,7 @@ fun Lyrics(
     sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
 ) {
+    val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current
     val density = LocalDensity.current
@@ -89,6 +93,7 @@ fun Lyrics(
     val landscapeOffset = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val lyricsFontSize by rememberPreference(LyricFontSizeKey, 20)
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
@@ -107,8 +112,7 @@ fun Lyrics(
     val lines: List<LyricsEntry> = remember(lyrics) {
         if (lyrics == null || lyrics == LYRICS_NOT_FOUND) emptyList()
         else if (lyrics.startsWith("[")) listOf(HEAD_LYRICS_ENTRY) +
-                loadAndParseLyricsString(LyricsUtils.uncompressLyrics(lyrics),
-                    LyricsUtils.LrcParserOptions(lyricTrim.value, multilineLrc.value, "Unable to parse lyrics"))
+                loadAndParseLyricsString(lyrics, LyricsUtils.LrcParserOptions(lyricTrim.value, multilineLrc.value, "Unable to parse lyrics"))
         else lyrics.lines().mapIndexed { index, line -> LyricsEntry(index * 100L, line) }
     }
     val isSynced = remember(lyrics) {
@@ -251,7 +255,7 @@ fun Lyrics(
                 ) { index, item ->
                     Text(
                         text = item.content,
-                        fontSize = 20.sp,
+                        fontSize = lyricsFontSize.sp,
                         color = textColor,
                         textAlign = when (lyricsTextPosition) {
                             LyricsPosition.LEFT -> TextAlign.Left
@@ -264,6 +268,7 @@ fun Lyrics(
                             .clickable(enabled = isSynced) {
                                 playerConnection.player.seekTo(item.timeStamp)
                                 lastPreviewTime = 0L
+                                haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
                             }
                             .padding(horizontal = 24.dp, vertical = 8.dp)
                             .alpha(if (!isSynced || index == displayedCurrentLineIndex) 1f else 0.5f)

@@ -9,6 +9,8 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavController
 import com.samyak.simpletube.db.entities.Album
 import com.samyak.simpletube.db.entities.Artist
@@ -31,6 +33,7 @@ fun LibraryArtistListItem(
 ) = ArtistListItem(
     artist = artist,
     trailingContent = {
+        val haptic = LocalHapticFeedback.current
         androidx.compose.material3.IconButton(
             onClick = {
                 menuState.show {
@@ -40,6 +43,7 @@ fun LibraryArtistListItem(
                         onDismiss = menuState::dismiss
                     )
                 }
+                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
             }
         ) {
             Icon(
@@ -97,6 +101,7 @@ fun LibraryAlbumListItem(
     isActive = isActive,
     isPlaying = isPlaying,
     trailingContent = {
+        val haptic = LocalHapticFeedback.current
         androidx.compose.material3.IconButton(
             onClick = {
                 menuState.show {
@@ -106,6 +111,7 @@ fun LibraryAlbumListItem(
                         onDismiss = menuState::dismiss
                     )
                 }
+                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
             }
         ) {
             Icon(
@@ -165,44 +171,46 @@ fun LibraryPlaylistListItem(
 ) = PlaylistListItem(
     playlist = playlist,
     trailingContent = {
+        val haptic = LocalHapticFeedback.current
         androidx.compose.material3.IconButton(
             onClick = {
                 menuState.show {
-                    if (playlist.playlist.isEditable || playlist.songCount != 0) {
+                    // TODO: investigate why song count is needed. Remove if not needed
+                    if (playlist.playlist.isEditable || playlist.playlist.isLocal || playlist.playlist.browseId == null || playlist.songCount != 0) {
                         PlaylistMenu(
                             playlist = playlist,
                             coroutineScope = coroutineScope,
                             onDismiss = menuState::dismiss
                         )
                     } else {
-                        playlist.playlist.browseId?.let { browseId ->
-                            YouTubePlaylistMenu(
-                                playlist = PlaylistItem(
-                                    id = browseId,
-                                    title = playlist.playlist.name,
-                                    author = null,
-                                    songCountText = null,
-                                    thumbnail = playlist.thumbnails[0],
-                                    playEndpoint = WatchEndpoint(
-                                        playlistId = browseId,
-                                        params = playlist.playlist.playEndpointParams
-                                    ),
-                                    shuffleEndpoint = WatchEndpoint(
-                                        playlistId = browseId,
-                                        params = playlist.playlist.shuffleEndpointParams
-                                    ),
-                                    radioEndpoint = WatchEndpoint(
-                                        playlistId = "RDAMPL$browseId",
-                                        params = playlist.playlist.radioEndpointParams
-                                    ),
-                                    isEditable = false
+                        val browseId = playlist.playlist.browseId
+                        YouTubePlaylistMenu(
+                            playlist = PlaylistItem(
+                                id = browseId,
+                                title = playlist.playlist.name,
+                                author = null,
+                                songCountText = null,
+                                thumbnail = playlist.thumbnails.getOrNull(0),
+                                playEndpoint = WatchEndpoint(
+                                    playlistId = browseId,
+                                    params = playlist.playlist.playEndpointParams
                                 ),
-                                coroutineScope = coroutineScope,
-                                onDismiss = menuState::dismiss
-                            )
-                        }
+                                shuffleEndpoint = WatchEndpoint(
+                                    playlistId = browseId,
+                                    params = playlist.playlist.shuffleEndpointParams
+                                ),
+                                radioEndpoint = WatchEndpoint(
+                                    playlistId = "RDAMPL$browseId",
+                                    params = playlist.playlist.radioEndpointParams
+                                ),
+                                isEditable = false
+                            ),
+                            coroutineScope = coroutineScope,
+                            onDismiss = menuState::dismiss
+                        )
                     }
                 }
+                haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
             }
         ) {
             Icon(
@@ -214,10 +222,11 @@ fun LibraryPlaylistListItem(
     modifier = modifier
         .fillMaxWidth()
         .clickable {
-            if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0)
-                navController.navigate("online_playlist/${playlist.playlist.browseId}")
-            else
+            if (playlist.playlist.isEditable || playlist.playlist.isLocal || playlist.playlist.browseId == null || playlist.songCount != 0) {
                 navController.navigate("local_playlist/${playlist.id}")
+            } else {
+                navController.navigate("online_playlist/${playlist.playlist.browseId}")
+            }
         }
 )
 
@@ -257,7 +266,7 @@ fun LibraryPlaylistGridItem(
                                     title = playlist.playlist.name,
                                     author = null,
                                     songCountText = null,
-                                    thumbnail = playlist.thumbnails[0],
+                                    thumbnail = playlist.thumbnails.getOrNull(0),
                                     playEndpoint = WatchEndpoint(
                                         playlistId = browseId,
                                         params = playlist.playlist.playEndpointParams

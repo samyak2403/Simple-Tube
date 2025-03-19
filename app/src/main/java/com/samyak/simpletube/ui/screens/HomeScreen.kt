@@ -70,6 +70,9 @@ import com.samyak.simpletube.db.entities.Album
 import com.samyak.simpletube.db.entities.Artist
 import com.samyak.simpletube.db.entities.LocalItem
 import com.samyak.simpletube.db.entities.Playlist
+import com.samyak.simpletube.db.entities.RecentActivityType.ALBUM
+import com.samyak.simpletube.db.entities.RecentActivityType.ARTIST
+import com.samyak.simpletube.db.entities.RecentActivityType.PLAYLIST
 import com.samyak.simpletube.db.entities.Song
 import com.samyak.simpletube.extensions.togglePlayPause
 import com.samyak.simpletube.models.toMediaMetadata
@@ -135,8 +138,8 @@ fun HomeScreen(
     val accountPlaylists by viewModel.accountPlaylists.collectAsState()
     val homePage by viewModel.homePage.collectAsState()
     val explorePage by viewModel.explorePage.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
     val recentActivity by viewModel.recentActivity.collectAsState()
-    val recentPlaylistsDb by viewModel.recentPlaylistsDb.collectAsState()
 
     val allLocalItems by viewModel.allLocalItems.collectAsState()
     val allYtItems by viewModel.allYtItems.collectAsState()
@@ -419,9 +422,9 @@ fun HomeScreen(
                             YouTubeCardItem(
                                 item,
                                 onClick = {
-                                    when (item) {
-                                        is PlaylistItem -> {
-                                            val playlistDb = recentPlaylistsDb
+                                    when (item.type) {
+                                        PLAYLIST -> {
+                                            val playlistDb = playlists
                                                 ?.firstOrNull { it.playlist.browseId == item.id }
 
                                             if (playlistDb != null && playlistDb.songCount != 0)
@@ -430,22 +433,18 @@ fun HomeScreen(
                                                 navController.navigate("online_playlist/${item.id}")
                                         }
 
-                                        is AlbumItem -> navController.navigate("album/${item.id}")
+                                        ALBUM -> navController.navigate("album/${item.id}")
 
-                                        is ArtistItem -> navController.navigate("artist/${item.id}")
-
-                                        else -> {}
+                                        ARTIST -> navController.navigate("artist/${item.id}")
                                     }
                                 },
                                 isPlaying = isPlaying,
-                                isActive = when (item) {
-                                    is PlaylistItem -> queuePlaylistId == item.id
-                                    is AlbumItem -> queuePlaylistId == item.playlistId
-                                    is ArtistItem -> (queuePlaylistId == item.radioEndpoint?.playlistId ||
-                                            queuePlaylistId == item.shuffleEndpoint?.playlistId ||
-                                            queuePlaylistId == item.playEndpoint?.playlistId)
-
-                                    else -> false
+                                isActive = when (item.type) {
+                                    PLAYLIST -> queuePlaylistId == item.id
+                                    ALBUM -> queuePlaylistId == item.playlistId
+                                    ARTIST -> (queuePlaylistId == item.radioPlaylistId ||
+                                            queuePlaylistId == item.shufflePlaylistId ||
+                                            queuePlaylistId == item.playlistId)
                                 },
                             )
                         }
@@ -530,16 +529,12 @@ fun HomeScreen(
                             SongListItem(
                                 song = song!!,
                                 onPlay = {
-                                    if (song!!.song.isLocal) {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = queueTitle,
-                                                items = listOf(song!!.toMediaMetadata())
-                                            )
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = queueTitle,
+                                            items = forgottenFavorites.map { it.toMediaMetadata() }
                                         )
-                                    } else {
-                                        playerConnection.playQueue(YouTubeQueue.radio(song!!.toMediaMetadata()))
-                                    }
+                                    )
                                 },
                                 onSelectedChange = {},
                                 inSelectMode = null,
@@ -673,6 +668,14 @@ fun HomeScreen(
                                 )
                             }
                         },
+                        onClick = it.endpoint?.browseId?.let { browseId ->
+                            {
+                                if (browseId == "FEmusic_moods_and_genres")
+                                    navController.navigate("mood_and_genres")
+                                else
+                                    navController.navigate("browse/$browseId")
+                            }
+                        },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -691,54 +694,6 @@ fun HomeScreen(
                 }
             }
 
-            explorePage?.newReleaseAlbums?.let { newReleaseAlbums ->
-                item {
-                    NavigationTitle(
-                        title = stringResource(R.string.new_release_albums),
-                        onClick = {
-                            navController.navigate("new_release")
-                        },
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item {
-                    LazyRow(
-                        contentPadding = WindowInsets.systemBars
-                            .only(WindowInsetsSides.Horizontal)
-                            .asPaddingValues(),
-                        modifier = Modifier.animateItem()
-                    ) {
-                        items(
-                            items = newReleaseAlbums,
-                            key = { it.id }
-                        ) { album ->
-                            YouTubeGridItem(
-                                item = album,
-                                isActive = mediaMetadata?.album?.id == album.id,
-                                isPlaying = isPlaying,
-                                coroutineScope = scope,
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            navController.navigate("album/${album.id}")
-                                        },
-                                        onLongClick = {
-                                            menuState.show {
-                                                YouTubeAlbumMenu(
-                                                    albumItem = album,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss
-                                                )
-                                            }
-                                        }
-                                    )
-                                    .animateItem()
-                            )
-                        }
-                    }
-                }
-            }
 
             explorePage?.moodAndGenres?.let { moodAndGenres ->
                 item {
@@ -750,7 +705,6 @@ fun HomeScreen(
                         modifier = Modifier.animateItem()
                     )
                 }
-
                 item {
                     LazyHorizontalGrid(
                         rows = GridCells.Fixed(4),
@@ -828,11 +782,11 @@ fun HomeScreen(
                         is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
                         is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
                         is ArtistItem -> luckyItem.radioEndpoint?.let {
-                            playerConnection.playQueue(YouTubeQueue(it))
+                            playerConnection.playQueue(YouTubeQueue(it), isRadio = true)
                         }
 
                         is PlaylistItem -> luckyItem.playEndpoint?.let {
-                            playerConnection.playQueue(YouTubeQueue(it))
+                            playerConnection.playQueue(YouTubeQueue(it), isRadio = true)
                         }
                     }
                 }

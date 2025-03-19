@@ -37,19 +37,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.samyak.simpletube.LocalDownloadUtil
-import com.samyak.simpletube.LocalIsNetworkConnected
 import com.samyak.simpletube.LocalPlayerAwareWindowInsets
 import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.AppBarHeight
 import com.samyak.simpletube.constants.SearchFilterHeight
-import com.samyak.simpletube.extensions.isAvailableOffline
 import com.samyak.simpletube.extensions.toMediaItem
 import com.samyak.simpletube.extensions.togglePlayPause
 import com.samyak.simpletube.models.toMediaMetadata
 import com.samyak.simpletube.playback.queues.ListQueue
-import com.samyak.simpletube.playback.queues.YouTubeQueue
 import com.samyak.simpletube.ui.component.ChipsRow
 import com.samyak.simpletube.ui.component.EmptyPlaceholder
 import com.samyak.simpletube.ui.component.LocalMenuState
@@ -75,6 +71,7 @@ import com.zionhuang.innertube.models.PlaylistItem
 import com.zionhuang.innertube.models.SongItem
 import com.zionhuang.innertube.models.YTItem
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -82,13 +79,11 @@ fun OnlineSearchResult(
     navController: NavController,
     viewModel: OnlineSearchViewModel = hiltViewModel(),
 ) {
-    val menuState = LocalMenuState.current
     val context = LocalContext.current
+    val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val isNetworkConnected = LocalIsNetworkConnected.current
-    val downloads by LocalDownloadUtil.current.downloads.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
@@ -113,10 +108,7 @@ fun OnlineSearchResult(
         }
     }
 
-    val ytItemContent: @Composable LazyItemScope.(YTItem) -> Unit = { item: YTItem ->
-        var available = true
-        if (item is SongItem) { available = downloads[item.id]?.isAvailableOffline() ?: false || isNetworkConnected }
-
+    val ytItemContent: @Composable LazyItemScope.(YTItem, List<YTItem>) -> Unit = { item: YTItem, collection: List<YTItem> ->
         val content: @Composable () -> Unit = {
             YouTubeListItem(
                 item = item,
@@ -127,7 +119,6 @@ fun OnlineSearchResult(
                 },
                 isPlaying = isPlaying,
                 trailingContent = {
-                    if (available) {
                         IconButton(
                             onClick = {
                                 menuState.show {
@@ -163,30 +154,25 @@ fun OnlineSearchResult(
                                 contentDescription = null
                             )
                         }
-                    }
+
                 },
                 modifier = Modifier
                     .combinedClickable(
                         onClick = {
                             when (item) {
                                 is SongItem -> {
-                                    if (available) {
-                                        if (item.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
-                                        } else {
-                                            playerConnection.playQueue(
-                                                if (isNetworkConnected) {
-                                                    YouTubeQueue.radio(item.toMediaMetadata())
-                                                }
-                                                else {
-                                                    ListQueue(
-                                                        title = "${context.getString(R.string.queue_searched_songs)} $viewModel.query",
-                                                        items = listOf(item.toMediaMetadata())
-                                                    )
-                                                },
-                                                replace = true,
-                                            )
-                                        }
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        val songSuggestions = collection.filter { it is SongItem }
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = "${context.getString(R.string.queue_searched_songs_ot)} ${ URLDecoder.decode(viewModel.query, "UTF-8")}",
+                                                items = songSuggestions.map { (it as SongItem).toMediaMetadata() },
+                                                startIndex = songSuggestions.indexOf(item)
+                                            ),
+                                            replace = true,
+                                        )
                                     }
                                 }
 
@@ -215,7 +201,6 @@ fun OnlineSearchResult(
 
         if (item !is SongItem) content()
         else SwipeToQueueBox(
-            enabled = available,
             item = item.toMediaItem(),
             content = { content() },
             snackbarHostState = snackbarHostState
@@ -236,9 +221,10 @@ fun OnlineSearchResult(
 
                 items(
                     items = summary.items,
-                    key = { "${summary.title}/${it.id}" },
-                    itemContent = ytItemContent
-                )
+                    key = { "${summary.title}/${it.id}" }
+                ) { item ->
+                    ytItemContent(item, summary.items)
+                }
             }
 
             if (searchSummary?.summaries?.isEmpty() == true) {
@@ -253,9 +239,10 @@ fun OnlineSearchResult(
         } else {
             items(
                 items = itemsPage?.items.orEmpty(),
-                key = { it.id },
-                itemContent = ytItemContent
-            )
+                key = { it.id }
+            ) { item ->
+                ytItemContent(item, itemsPage?.items.orEmpty())
+            }
 
             if (itemsPage?.continuation != null) {
                 item(key = "loading") {

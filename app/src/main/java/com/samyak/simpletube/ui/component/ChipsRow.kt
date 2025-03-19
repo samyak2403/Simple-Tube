@@ -1,5 +1,6 @@
 package com.samyak.simpletube.ui.component
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -20,6 +21,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -68,8 +72,14 @@ fun <E> ChipsLazyRow(
     selected: ((E) -> Boolean)? = null,
     isLoading: (E) -> Boolean = { false }
 ) {
+    val haptic = LocalHapticFeedback.current
     val tween: FiniteAnimationSpec<Float> = tween(
-        durationMillis = 200,
+        durationMillis = 300,
+        easing = FastOutSlowInEasing
+    )
+
+    val placementTween: FiniteAnimationSpec<IntOffset> = tween(
+        durationMillis = 300,
         easing = LinearOutSlowInEasing
     )
 
@@ -91,10 +101,14 @@ fun <E> ChipsLazyRow(
                 label = { Text(label) },
                 selected = selected?.let { it(value) } ?: (currentValue == value),
                 colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = { onValueUpdate(value) },
+                onClick = {
+                    onValueUpdate(value)
+                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                },
                 modifier = Modifier
                     .animateItem(
                         fadeInSpec =  tween,
+                        placementSpec = placementTween,
                         fadeOutSpec = tween
                     ),
                 trailingIcon = {

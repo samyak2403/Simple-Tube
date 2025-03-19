@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Contrast
@@ -64,6 +65,7 @@ import com.samyak.simpletube.constants.PlayerBackgroundStyleKey
 import com.samyak.simpletube.constants.PureBlackKey
 import com.samyak.simpletube.constants.ShowLikedAndDownloadedPlaylist
 import com.samyak.simpletube.constants.SlimNavBarKey
+import com.samyak.simpletube.constants.SwipeToQueueKey
 import com.samyak.simpletube.constants.ThumbnailCornerRadius
 import com.samyak.simpletube.extensions.move
 import com.samyak.simpletube.ui.component.ActionPromptDialog
@@ -111,6 +113,7 @@ fun AppearanceSettings(
     val (defaultOpenTabNew, onDefaultOpenTabNewChange) = rememberEnumPreference(DefaultOpenTabNewKey, defaultValue = NavigationTabNew.HOME)
     val (newInterfaceStyle, onNewInterfaceStyleChange) = rememberPreference(key = NewInterfaceKey, defaultValue = true)
     val (showLikedAndDownloadedPlaylist, onShowLikedAndDownloadedPlaylistChange) = rememberPreference(key = ShowLikedAndDownloadedPlaylist, defaultValue = true)
+    val (swipe2Queue, onSwipe2QueueChange) = rememberPreference(SwipeToQueueKey, defaultValue = true)
     val (slimNav, onSlimNavChange) = rememberPreference(SlimNavBarKey, defaultValue = false)
     val (flatSubfolders, onFlatSubfoldersChange) = rememberPreference(FlatSubfoldersKey, defaultValue = true)
 
@@ -146,32 +149,6 @@ fun AppearanceSettings(
         }
         mutableTabs.move(from.index, to.index)
     }
-    LaunchedEffect(reorderableState.isAnyItemDragging) {
-        if (!reorderableState.isAnyItemDragging) {
-            dragInfo?.let { (from, to) ->
-//                if (from == to) {
-//                    return@LaunchedEffect
-//                }
-
-//                mutableTabs.apply {
-//                    clear()
-//
-//                    val enabled = decodeTabString(enabledTabs)
-//                    addAll(enabled)
-//                    add(NavigationTab.NULL)
-//                    addAll(NavigationTab.entries.filter { item -> enabled.none { it == item || item == NavigationTab.NULL } })
-//                }
-            }
-        }
-    }
-
-
-
-//    val reorderableState = rememberReorderableLazyListState(
-//        onMove = { from, to ->
-//            mutableTabs.move(from.index, to.index)
-//        }
-//    )
 
     fun updateTabs() {
         mutableTabs.apply {
@@ -194,28 +171,13 @@ fun AppearanceSettings(
             .verticalScroll(rememberScrollState())
     ) {
         PreferenceGroupTitle(
-            title = "Theme"
+            title = stringResource(R.string.theme)
         )
-
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_dynamic_theme)) },
             icon = { Icon(Icons.Rounded.Palette, null) },
             checked = dynamicTheme,
             onCheckedChange = onDynamicThemeChange
-        )
-        EnumListPreference(
-            title = { Text(stringResource(R.string.player_background_style)) },
-            icon = { Icon(Icons.Rounded.BlurOn, null) },
-            selectedValue = playerBackground,
-            onValueSelected = onPlayerBackgroundChange,
-            valueText = {
-                when (it) {
-                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.player_background_default)
-                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.player_background_gradient)
-                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                }
-            },
-            values = availableBackgroundStyles
         )
         EnumListPreference(
             title = { Text(stringResource(R.string.dark_theme)) },
@@ -236,25 +198,43 @@ fun AppearanceSettings(
             checked = pureBlack,
             onCheckedChange = onPureBlackChange
         )
-
-        PreferenceGroupTitle(
-            title = "Layout"
+        EnumListPreference(
+            title = { Text(stringResource(R.string.player_background_style)) },
+            icon = { Icon(Icons.Rounded.BlurOn, null) },
+            selectedValue = playerBackground,
+            onValueSelected = onPlayerBackgroundChange,
+            valueText = {
+                when (it) {
+                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.player_background_default)
+                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.player_background_gradient)
+                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+                }
+            },
+            values = availableBackgroundStyles
         )
 
+        PreferenceGroupTitle(
+            title = stringResource(R.string.grp_interface)
+        )
         SwitchPreference(
             title = { Text(stringResource(R.string.new_interface)) },
             icon = { Icon(Icons.Rounded.Palette, null) },
             checked = newInterfaceStyle,
             onCheckedChange = onNewInterfaceStyleChange
         )
-
         SwitchPreference(
             title = { Text(stringResource(R.string.show_liked_and_downloaded_playlist)) },
             icon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, null) },
             checked = showLikedAndDownloadedPlaylist,
             onCheckedChange = onShowLikedAndDownloadedPlaylistChange
         )
-
+        SwitchPreference(
+            title = { Text(stringResource(R.string.swipe2Queue)) },
+            description = stringResource(R.string.swipe2Queue_description),
+            icon = { Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, null) },
+            checked = swipe2Queue,
+            onCheckedChange = onSwipe2QueueChange
+        )
         SwitchPreference(
             title = { Text(stringResource(R.string.slim_navbar_title)) },
             description = stringResource(R.string.slim_navbar_description),
@@ -262,9 +242,8 @@ fun AppearanceSettings(
             checked = slimNav,
             onCheckedChange = onSlimNavChange
         )
-
         PreferenceEntry(
-            title = { Text("Tab arrangement") },
+            title = { Text(stringResource(R.string.tab_arrangement)) },
             icon = { Icon(Icons.Rounded.Reorder, null) },
             onClick = {
                 showTabArrangement = true
@@ -273,7 +252,7 @@ fun AppearanceSettings(
 
         if (showTabArrangement)
             ActionPromptDialog(
-                title = "Arrange tabs",
+                title = stringResource(R.string.tab_arrangement),
                 onDismiss = { showTabArrangement = false },
                 onConfirm = {
                     var encoded = encodeTabString(mutableTabs)
@@ -334,7 +313,7 @@ fun AppearanceSettings(
                                         NavigationTab.ALBUM -> stringResource(R.string.albums)
                                         NavigationTab.PLAYLIST -> stringResource(R.string.playlists)
                                         else -> {
-                                            "--- Drag below here to disable ---"
+                                            stringResource(R.string.tab_arrangement_disable_tip)
                                         }
                                     }
                                 )
@@ -348,7 +327,7 @@ fun AppearanceSettings(
                     }
                 }
 
-                InfoLabel(text = "The Home tab is required.")
+                InfoLabel(stringResource(R.string.tab_arrangement_home_required))
             }
 
         if (newInterfaceStyle) {

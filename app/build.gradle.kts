@@ -1,11 +1,9 @@
 @file:Suppress("UnstableApiUsage")
 
-val isFullBuild: Boolean by rootProject.extra
 
 plugins {
     id("com.android.application")
     kotlin("android")
-    kotlin("kapt")
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
@@ -17,10 +15,10 @@ android {
 
     defaultConfig {
         applicationId = "com.samyak.simpletube"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -32,6 +30,13 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+        }
+
+        // userdebug is release builds without minify
+        create("userdebug") {
+            initWith(getByName("release"))
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
@@ -77,13 +82,16 @@ android {
                 abiFilters.add("x86_64")
             }
         }
-        // for uncommon, but non-obscure architectures
-        create("uncommon_abi") {
-            dimension = "abi"
-            ndk {
-                abiFilters.addAll(listOf("x86", "x86_64", "armeabi-v7a"))
+    }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                val outputFileName = "SimpleTune-${variant.versionName}-${variant.baseName}.apk"
+                output.outputFileName = outputFileName
             }
-        }
     }
 
     compileOptions {
@@ -114,6 +122,8 @@ android {
 
     lint {
         disable += "MissingTranslation"
+        disable += "ImpliedQuantity"
+        disable += "ByteOrderMark"
     }
 
 }
@@ -155,6 +165,7 @@ dependencies {
     implementation(libs.media3)
     implementation(libs.media3.session)
     implementation(libs.media3.okhttp)
+    implementation(libs.media3.ui)
 
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
@@ -172,6 +183,9 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.serialization.json)
 
     /*
     "JitPack builds are broken with the latest CMake version.

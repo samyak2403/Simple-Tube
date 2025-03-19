@@ -1,4 +1,4 @@
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:Suppress("INVISIBLE_MEMBER")
 
 package com.samyak.simpletube.ui.component
 
@@ -19,7 +19,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
-import androidx.compose.material3.tokens.IconButtonTokens
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -32,7 +31,10 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 
+// IconButtonTokens.StateLayerSize
+val stateLayerSize = 40.0.dp
 @Composable
 fun ResizableIconButton(
     @DrawableRes icon: Int,
@@ -97,9 +99,9 @@ fun IconButton(
     Box(
         modifier = modifier
             .minimumInteractiveComponentSize()
-            .size(IconButtonTokens.StateLayerSize)
+            .size(stateLayerSize)
             .clip(CircleShape)
-            .background(color = colors.containerColor(enabled))
+            .background(color = if (enabled) colors.containerColor else colors.disabledContainerColor)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -108,12 +110,12 @@ fun IconButton(
                 interactionSource = interactionSource,
                 indication = ripple(
                     bounded = false,
-                    radius = IconButtonTokens.StateLayerSize / 2
+                    radius = stateLayerSize / 2
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
-        val contentColor = colors.contentColor(enabled)
+        val contentColor = if (enabled) colors.contentColor else colors.disabledContentColor
         CompositionLocalProvider(LocalContentColor provides contentColor, content = content)
     }
 }

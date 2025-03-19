@@ -30,7 +30,7 @@ import com.samyak.simpletube.LocalPlayerConnection
 import com.samyak.simpletube.R
 import com.samyak.simpletube.constants.StatPeriod
 import com.samyak.simpletube.models.toMediaMetadata
-import com.samyak.simpletube.playback.queues.YouTubeQueue
+import com.samyak.simpletube.playback.queues.ListQueue
 import com.samyak.simpletube.ui.component.AlbumGridItem
 import com.samyak.simpletube.ui.component.ArtistGridItem
 import com.samyak.simpletube.ui.component.ChipsRow
@@ -60,6 +60,8 @@ fun StatsScreen(
     val mostPlayedAlbums by viewModel.mostPlayedAlbums.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
+
+    val mostPlayedSongTitle = stringResource(R.string.most_played_songs)
 
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom).asPaddingValues(),
@@ -95,7 +97,10 @@ fun StatsScreen(
                 song = song,
                 onPlay = {
                     playerConnection.playQueue(
-                        YouTubeQueue.radio(song.toMediaMetadata())
+                        ListQueue(
+                            title = mostPlayedSongTitle,
+                            items = mostPlayedSongs.map { it.toMediaMetadata() }
+                        )
                     )
                 },
                 onSelectedChange = {},
