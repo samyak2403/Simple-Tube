@@ -12,7 +12,7 @@ A Material 3 YouTube Music client & local music player for Android
 
 
 [<img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/samyak2403/Simple-Tube/releases/latest)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">](https://github.com/samyak2403/URLPlayer-Stable-Version)
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">]()
 [<img src="https://github.com/samyak2403/Simple-Tube/blob/main/assets/openapk-badge.png" height="80">](https://www.openapk.net/simple-tube/com.simple.tube/)
 [<img src="https://github.com/samyak2403/Simple-Tube/blob/main/assets/androidfreeware-badge.png" height="80">](https://www.androidfreeware.net/download-simple-tube-apk.html)
 
