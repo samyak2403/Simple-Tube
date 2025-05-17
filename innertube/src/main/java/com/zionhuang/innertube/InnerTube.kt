@@ -460,7 +460,6 @@ class InnerTube {
         client: YouTubeClient,
         playlistId: String,
     ) = httpClient.post("playlist/delete") {
-        println("deleting $playlistId")
         ytClient(client, setLogin = true)
         setBody(
             PlaylistDeleteBody(
