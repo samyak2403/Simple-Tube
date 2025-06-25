@@ -4,6 +4,9 @@
 
 ![pv](https://pageview.vercel.app/?github_user=Simple-Tube)
 
+https://img.shields.io/github/downloads/samyak2403/Simple-Tube/total
+
+
 
 A Material 3 YouTube Music client & local music player for Android
 
