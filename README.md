@@ -4,7 +4,7 @@
 
 ![pv](https://pageview.vercel.app/?github_user=Simple-Tube)
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/samyak2403/Simple-Tube/total) ![GitHub watchers](https://img.shields.io/github/watchers/samyak2403/Simple-Tube)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/samyak2403/Simple-Tube/total) 
 
 
 
