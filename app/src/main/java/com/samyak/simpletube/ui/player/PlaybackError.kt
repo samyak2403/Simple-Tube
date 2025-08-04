@@ -65,7 +65,14 @@ fun PlaybackError(
         )
 
         Text(
-            text = error.cause?.cause?.message ?: stringResource(R.string.error_unknown),
+            text = when (error.errorCode) {
+                2000 -> error.message ?: "This content requires YouTube sign-in"
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "No internet connection"
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "Connection timeout"
+                PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "File not found"
+                PlaybackException.ERROR_CODE_REMOTE_ERROR -> error.message ?: "Remote server error"
+                else -> error.cause?.cause?.message ?: error.message ?: stringResource(R.string.error_unknown)
+            },
             color = textColor,
             style = MaterialTheme.typography.bodyMedium
         )

@@ -259,17 +259,43 @@ class MusicService : MediaLibraryService(),
                             return
                         }
 
-                        if (dataStore.get(SkipOnErrorKey, true)) {
-                            skipOnError()
-                        } else {
-                            stopOnError()
+                        when (error.errorCode) {
+                            2000 -> {
+                                // Source error (2000) - Sign-in required
+                                player.pause()
+                                Toast.makeText(
+                                    this@MusicService,
+                                    "Sign-in required: ${error.message ?: "This content requires YouTube authentication"}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                return
+                            }
+                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> {
+                                waitOnNetworkError()
+                                return
+                            }
+                            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
+                                Toast.makeText(
+                                    this@MusicService,
+                                    "Connection timeout. Please check your internet connection.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> {
+                                // Default error handling
+                                if (dataStore.get(SkipOnErrorKey, true)) {
+                                    skipOnError()
+                                } else {
+                                    stopOnError()
+                                }
+                                
+                                Toast.makeText(
+                                    this@MusicService,
+                                    "Error: ${error.message ?: "Playback failed"} (${error.errorCode})",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
-
-                        Toast.makeText(
-                            this@MusicService,
-                            "Error: ${error.message} (${error.errorCode}): ${error.cause?.message ?: "No further errors."} ",
-                            Toast.LENGTH_LONG
-                        ).show()
                     }
 
                     // start playback again on seek

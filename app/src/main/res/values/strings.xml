@@ -334,4 +334,9 @@ We recycle translations from upstream, they are pulled periodically. -->
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+
+    <!-- Error Messages -->
+    <string name="err_sign_in_required">Sign-in required for playback. Please confirm your account settings.</string>
+    <string name="err_network_timeout">Network connection timeout. Please try again.</string>
+    <string name="err_playback_failed">Playback failed. Please try again.</string>
 </resources>
