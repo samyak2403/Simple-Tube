@@ -67,6 +67,7 @@ fun PlaybackError(
         Text(
             text = when (error.errorCode) {
                 2000 -> error.message ?: "This content requires YouTube sign-in"
+                2004 -> "Stream unavailable. Retrying with different source..."
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "No internet connection"
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "Connection timeout"
                 PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "File not found"

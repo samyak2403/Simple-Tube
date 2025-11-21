@@ -17,8 +17,8 @@ android {
         applicationId = "com.samyak.simpletube"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 5
+        versionName = "0.2.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -124,6 +124,12 @@ android {
         disable += "MissingTranslation"
         disable += "ImpliedQuantity"
         disable += "ByteOrderMark"
+    }
+
+    sourceSets {
+        getByName("main") {
+            java.setSrcDirs(listOf("src/main/java"))
+        }
     }
 
 }

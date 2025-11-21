@@ -576,6 +576,8 @@ class MainActivity : ComponentActivity() {
                             if (youtubeNavigator(it.toUri())) {
                                 // don't do anything
                             } else {
+                                // Use urlEncode() but it will be decoded in ViewModel
+                                // This maintains URL safety while allowing spaces in search
                                 navController.navigate("search/${it.urlEncode()}")
                                 if (dataStore[PauseSearchHistoryKey] != true) {
                                     database.query {

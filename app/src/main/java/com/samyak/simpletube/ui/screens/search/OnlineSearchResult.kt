@@ -167,7 +167,7 @@ fun OnlineSearchResult(
                                         val songSuggestions = collection.filter { it is SongItem }
                                         playerConnection.playQueue(
                                             ListQueue(
-                                                title = "${context.getString(R.string.queue_searched_songs_ot)} ${ URLDecoder.decode(viewModel.query, "UTF-8")}",
+                                                title = "${context.getString(R.string.queue_searched_songs_ot)} ${viewModel.query}",
                                                 items = songSuggestions.map { (it as SongItem).toMediaMetadata() },
                                                 startIndex = songSuggestions.indexOf(item)
                                             ),
@@ -214,20 +214,25 @@ fun OnlineSearchResult(
             .asPaddingValues()
     ) {
         if (searchFilter == null) {
+            // Show search summary (ALL filter)
             searchSummary?.summaries?.forEach { summary ->
-                item {
-                    NavigationTitle(summary.title)
-                }
+                // Only show sections that have items
+                if (summary.items.isNotEmpty()) {
+                    item {
+                        NavigationTitle(summary.title)
+                    }
 
-                items(
-                    items = summary.items,
-                    key = { "${summary.title}/${it.id}" }
-                ) { item ->
-                    ytItemContent(item, summary.items)
+                    items(
+                        items = summary.items,
+                        key = { "${summary.title}/${it.id}" }
+                    ) { item ->
+                        ytItemContent(item, summary.items)
+                    }
                 }
             }
 
-            if (searchSummary?.summaries?.isEmpty() == true) {
+            // Only show "no results" if we have a summary but ALL sections are empty
+            if (searchSummary != null && searchSummary.summaries.all { it.items.isEmpty() }) {
                 item {
                     EmptyPlaceholder(
                         icon = Icons.Rounded.Search,

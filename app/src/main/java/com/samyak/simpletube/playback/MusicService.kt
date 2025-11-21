@@ -12,6 +12,7 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
@@ -269,6 +270,52 @@ class MusicService : MediaLibraryService(),
                                     Toast.LENGTH_LONG
                                 ).show()
                                 return
+                            }
+                            2004 -> {
+                                // Error 2004 - I/O unspecified error, usually expired stream URL
+                                // This is a critical error that needs immediate stream refresh
+                                
+                                val currentMediaItem = player.currentMediaItem
+                                if (currentMediaItem != null && consecutivePlaybackErr < 3) {
+                                    consecutivePlaybackErr++
+                                    
+                                    Toast.makeText(
+                                        this@MusicService,
+                                        "Stream expired. Refreshing... (${consecutivePlaybackErr}/3)",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    
+                                    // Force clear the cache and reload with fresh stream
+                                    val currentPosition = player.currentPosition
+                                    val wasPlaying = player.isPlaying
+                                    
+                                    // Remove and re-add the media item to force URL refresh
+                                    player.removeMediaItem(player.currentMediaItemIndex)
+                                    player.addMediaItem(player.currentMediaItemIndex, currentMediaItem)
+                                    player.seekTo(player.currentMediaItemIndex, currentPosition)
+                                    
+                                    if (wasPlaying) {
+                                        player.prepare()
+                                        player.play()
+                                    } else {
+                                        player.prepare()
+                                    }
+                                    return
+                                } else {
+                                    // After 3 retries, skip to next track
+                                    Toast.makeText(
+                                        this@MusicService,
+                                        "Unable to refresh stream. Skipping...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    
+                                    consecutivePlaybackErr = 0
+                                    if (dataStore.get(SkipOnErrorKey, true)) {
+                                        skipOnError()
+                                    } else {
+                                        stopOnError()
+                                    }
+                                }
                             }
                             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> {
                                 waitOnNetworkError()
@@ -821,10 +868,16 @@ class MusicService : MediaLibraryService(),
                 return@Factory dataSpec
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+            // Check cache with buffer time (refresh 30 seconds before expiry to prevent 2004 errors)
+            val currentTime = System.currentTimeMillis()
+            val bufferTime = 30000L // 30 seconds buffer
+            songUrlCache[mediaId]?.takeIf { it.second > currentTime + bufferTime }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
+            
+            // Clear expired or soon-to-expire cache entry to force refresh
+            songUrlCache.remove(mediaId)
 
             // Check whether format exists so that users from older version can view format details
             // There may be inconsistent between the downloaded file and the displayed info if user change audio quality frequently
@@ -883,9 +936,17 @@ class MusicService : MediaLibraryService(),
             scope.launch(Dispatchers.IO) { recoverSong(mediaId, playbackData) }
 
             val streamUrl = playbackData.streamUrl
-
-            songUrlCache[mediaId] =
-                streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
+            val expiryTime = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
+            
+            // Validate stream URL before caching to prevent error 2004
+            if (playbackData.streamExpiresInSeconds < 60) {
+                // Stream expires in less than 60 seconds - this is suspicious
+                Log.w("MusicService", "[$mediaId] Stream expires very soon: ${playbackData.streamExpiresInSeconds}s")
+            }
+            
+            songUrlCache[mediaId] = streamUrl to expiryTime
+            Log.d("MusicService", "[$mediaId] Cached stream URL, expires in ${playbackData.streamExpiresInSeconds}s")
+            
             dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
         }
     }

@@ -14,30 +14,39 @@ import com.samyak.simpletube.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
 import javax.inject.Inject
 
 @HiltViewModel
 class OnlineSearchViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val query = savedStateHandle.get<String>("query")!!
+    // Decode URL-encoded query (e.g., "mama+chi+porgi" → "mama chi porgi")
+    val query = URLDecoder.decode(savedStateHandle.get<String>("query")!!, "UTF-8")
     val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
 
     init {
+        // Load search results immediately on initialization
+        viewModelScope.launch {
+            // Load summary (ALL filter) immediately
+            YouTube.searchSummary(query)
+                .onSuccess {
+                    summaryPage = it
+                }
+                .onFailure {
+                    reportException(it)
+                    // Don't set empty summary - keep it null to show error state properly
+                    // The UI will handle null state differently than empty state
+                }
+        }
+        
+        // Listen for filter changes
         viewModelScope.launch {
             filter.collect { filter ->
                 if (filter == null) {
-                    if (summaryPage == null) {
-                        YouTube.searchSummary(query)
-                            .onSuccess {
-                                summaryPage = it
-                            }
-                            .onFailure {
-                                reportException(it)
-                            }
-                    }
+                    // Already loaded in init above
                 } else {
                     if (viewStateMap[filter.value] == null) {
                         YouTube.search(query, filter)
@@ -46,6 +55,8 @@ class OnlineSearchViewModel @Inject constructor(
                             }
                             .onFailure {
                                 reportException(it)
+                                // Set empty results to stop shimmer
+                                viewStateMap[filter.value] = ItemsPage(emptyList(), null)
                             }
                     }
                 }

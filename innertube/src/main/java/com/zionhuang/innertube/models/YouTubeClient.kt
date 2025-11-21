@@ -86,5 +86,13 @@ data class YouTubeClient(
             userAgent = "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
             osVersion = "18.3.2.22D82",
         )
+
+        val ANDROID_VR_NO_AUTH = YouTubeClient(
+            clientName = "ANDROID_VR",
+            clientVersion = "1.60.19",
+            clientId = "28",
+            userAgent = "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 14; eureka-user Build/UP1A.231005.007) gzip",
+            osVersion = "14",
+        )
     }
 }

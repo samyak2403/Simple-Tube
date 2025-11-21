@@ -53,6 +53,13 @@ class InnerTube {
     private fun createClient() = HttpClient(OkHttp) {
         expectSuccess = true
 
+        // Configure timeouts to prevent ERR_TIMED_OUT errors
+        install(HttpTimeout) {
+            requestTimeoutMillis = 30000  // 30 seconds for request
+            connectTimeoutMillis = 15000  // 15 seconds for connection
+            socketTimeoutMillis = 30000   // 30 seconds for socket read/write
+        }
+
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -69,6 +76,22 @@ class InnerTube {
         if (proxy != null) {
             engine {
                 proxy = this@InnerTube.proxy
+                
+                // Configure OkHttp engine timeouts as well
+                config {
+                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                }
+            }
+        } else {
+            engine {
+                // Configure OkHttp engine timeouts even without proxy
+                config {
+                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                }
             }
         }
 

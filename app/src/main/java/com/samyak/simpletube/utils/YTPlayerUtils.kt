@@ -18,6 +18,7 @@ import com.samyak.simpletube.utils.potoken.PoTokenResult
 import com.zionhuang.innertube.NewPipeUtils
 import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.models.YouTubeClient
+import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
 import com.zionhuang.innertube.models.YouTubeClient.Companion.IOS
 import com.zionhuang.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.zionhuang.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -39,18 +40,23 @@ object YTPlayerUtils {
      * Do not use other clients for this because it can result in inconsistent metadata.
      * For example other clients can have different normalization targets (loudnessDb).
      *
+     * [com.zionhuang.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH] Is temporally used as it is out only working client
      * [com.zionhuang.innertube.models.YouTubeClient.WEB_REMIX] should be preferred here because currently it is the only client which provides:
      * - the correct metadata (like loudnessDb)
      * - premium formats
      */
-    val MAIN_CLIENT: YouTubeClient = WEB_REMIX
+    val MAIN_CLIENT: YouTubeClient = ANDROID_VR_NO_AUTH
 
     /**
      * Clients used for fallback streams in case the streams of the main client do not work.
      */
     val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        IOS,
+        // Could not parse deobfuscation function
+//        WEB_REMIX,
+//        ANDROID,
+//        TVHTML5,
+//        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
+        IOS, // recent api changes produce error 403 after 30 seconds
     )
 
     data class PlaybackData(
@@ -219,7 +225,7 @@ object YTPlayerUtils {
         videoId: String,
         playlistId: String? = null,
     ): Result<PlayerResponse> =
-        YouTube.player(videoId, playlistId, client = MAIN_CLIENT)
+        YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
 
     private fun findFormat(
         playerResponse: PlayerResponse,
