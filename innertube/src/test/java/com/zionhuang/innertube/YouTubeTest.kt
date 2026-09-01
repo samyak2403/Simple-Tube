@@ -23,6 +23,21 @@ class YouTubeTest {
     private val youTube = YouTube
 
     @Test
+    fun `Check playable stream`() = runBlocking {
+        VIDEO_IDS.forEach { videoId ->
+            val playerResponse = youTube.player(videoId, client = YouTubeClient.IOS).getOrThrow()
+            val format = playerResponse.streamingData!!.adaptiveFormats[0]
+            val url = NewPipeUtils.getStreamUrl(format, videoId).getOrThrow()
+            val response = HttpClient(OkHttp).get(url) {
+                headers {
+                    append("Range", "bytes=0-0")
+                }
+            }
+            assertTrue(response.status.isSuccess())
+        }
+    }
+
+    @Test
     fun `Check 'player' endpoint`() = runBlocking {
         VIDEO_IDS.forEach { videoId ->
             val playerResponse = youTube.player(videoId, client = YouTubeClient.IOS).getOrThrow()
@@ -30,21 +45,7 @@ class YouTubeTest {
         }
     }
 
-    @Test
-    fun `Check playable stream`() = runBlocking {
-        VIDEO_IDS.forEach { videoId ->
-            val playerResponse = youTube.player(videoId, client = YouTubeClient.IOS).getOrThrow()
-            val format = playerResponse.streamingData!!.adaptiveFormats[0]
-            val url = format.url!!
-            println(url)
-            val response = HttpClient(OkHttp).get(url) {
-                headers {
-                    append("Range", "bytes=0-10")
-                }
-            }
-            assertTrue(response.status.isSuccess())
-        }
-    }
+
 
     @Test
     fun `Check 'search' endpoint`() = runBlocking {

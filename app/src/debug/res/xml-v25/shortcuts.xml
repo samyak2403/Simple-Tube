@@ -8,7 +8,7 @@
         <intent
             android:targetClass="com.samyak.simpletube.MainActivity"
             android:targetPackage="com.samyak.simpletube.debug"
-            android:action="com.dd3boh.outertune.action.SEARCH" />
+            android:action="com.samyak.simpletube.action.SEARCH" />
     </shortcut>
     <shortcut
         android:shortcutId="songs"
@@ -18,7 +18,7 @@
         <intent
             android:targetClass="com.samyak.simpletube.MainActivity"
             android:targetPackage="com.samyak.simpletube.debug"
-            android:action="com.dd3boh.outertune.action.SONGS" />
+            android:action="com.samyak.simpletube.action.SONGS" />
     </shortcut>
     <shortcut
         android:shortcutId="albums"
@@ -28,7 +28,7 @@
         <intent
             android:targetClass="com.samyak.simpletube.MainActivity"
             android:targetPackage="com.samyak.simpletube.debug"
-            android:action="com.dd3boh.outertune.action.ALBUMS" />
+            android:action="com.samyak.simpletube.action.ALBUMS" />
     </shortcut>
     <shortcut
         android:shortcutId="playlists"
@@ -38,6 +38,6 @@
         <intent
             android:targetClass="com.samyak.simpletube.MainActivity"
             android:targetPackage="com.samyak.simpletube.debug"
-            android:action="com.dd3boh.outertune.action.PLAYLISTS" />
+            android:action="com.samyak.simpletube.action.PLAYLISTS" />
     </shortcut>
 </shortcuts>

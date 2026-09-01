@@ -861,7 +861,7 @@ fun SetupWizard(
 
                             Row {
                                 IconButton(
-                                    onClick = { uriHandler.openUri("https://github.com/DD3Boh/OuterTune") }
+                                    onClick = { uriHandler.openUri("https://github.com/samyak2403/Simple-Tube") }
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.github),

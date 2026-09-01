@@ -201,7 +201,7 @@ import com.samyak.simpletube.ui.screens.settings.SettingsScreen
 import com.samyak.simpletube.ui.screens.settings.StorageSettings
 import com.samyak.simpletube.ui.theme.ColorSaver
 import com.samyak.simpletube.ui.theme.DefaultThemeColor
-import com.samyak.simpletube.ui.theme.OuterTuneTheme
+import com.samyak.simpletube.ui.theme.SimpleTuneTheme
 import com.samyak.simpletube.ui.theme.extractThemeColor
 import com.samyak.simpletube.ui.utils.DEFAULT_SCAN_PATH
 import com.samyak.simpletube.ui.utils.MEDIA_PERMISSION_LEVEL
@@ -451,7 +451,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            OuterTuneTheme(
+            SimpleTuneTheme(
                 darkTheme = useDarkTheme,
                 pureBlack = pureBlack,
                 themeColor = themeColor
@@ -1310,10 +1310,10 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        const val ACTION_SEARCH = "com.dd3boh.outertune.action.SEARCH"
-        const val ACTION_SONGS = "com.dd3boh.outertune.action.SONGS"
-        const val ACTION_ALBUMS = "com.dd3boh.outertune.action.ALBUMS"
-        const val ACTION_PLAYLISTS = "com.dd3boh.outertune.action.PLAYLISTS"
+        const val ACTION_SEARCH = "com.samyak.simpletube.action.SEARCH"
+        const val ACTION_SONGS = "com.samyak.simpletube.action.SONGS"
+        const val ACTION_ALBUMS = "com.samyak.simpletube.action.ALBUMS"
+        const val ACTION_PLAYLISTS = "com.samyak.simpletube.action.PLAYLISTS"
     }
 }
 

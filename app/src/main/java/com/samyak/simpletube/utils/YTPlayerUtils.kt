@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 OuterTune Project
+ * Copyright (C) 2025-2026 SimpleTune Project
  *
  * SPDX-License-Identifier: GPL-3.0
  *
@@ -18,11 +18,13 @@ import com.samyak.simpletube.utils.potoken.PoTokenResult
 import com.zionhuang.innertube.NewPipeUtils
 import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.models.YouTubeClient
+import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
 import com.zionhuang.innertube.models.YouTubeClient.Companion.IOS
 import com.zionhuang.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.zionhuang.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.zionhuang.innertube.models.response.PlayerResponse
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 
 object YTPlayerUtils {
@@ -36,27 +38,54 @@ object YTPlayerUtils {
     private val poTokenGenerator = PoTokenGenerator()
 
     /**
-     * The main client is used for metadata and initial streams.
-     * Do not use other clients for this because it can result in inconsistent metadata.
-     * For example other clients can have different normalization targets (loudnessDb).
-     *
-     * [com.zionhuang.innertube.models.YouTubeClient.ANDROID_VR_NO_AUTH] Is temporally used as it is out only working client
-     * [com.zionhuang.innertube.models.YouTubeClient.WEB_REMIX] should be preferred here because currently it is the only client which provides:
-     * - the correct metadata (like loudnessDb)
-     * - premium formats
+     * Create an OkHttpClient configured with the appropriate User-Agent and headers
+     * for YouTube / googlevideo media stream requests.
      */
-    val MAIN_CLIENT: YouTubeClient = ANDROID_VR_NO_AUTH
+    fun createPlaybackOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .proxy(YouTube.proxy)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val url = request.url
+                val host = url.host
+                if (host.contains("googlevideo.com") || host.contains("youtube.com")) {
+                    val clientParam = url.queryParameter("c")
+                    val userAgent = when (clientParam) {
+                        "IOS" -> YouTubeClient.IOS.userAgent
+                        "VISIONOS" -> "com.google.ios.youtube/19.29.1 (Apple Vision Pro; visionOS 1.2; gzip)"
+                        "ANDROID_VR" -> YouTubeClient.ANDROID_VR_NO_AUTH.userAgent
+                        "ANDROID" -> YouTubeClient.ANDROID.userAgent
+                        else -> YouTubeClient.USER_AGENT_WEB
+                    }
+                    val newRequestBuilder = request.newBuilder()
+                        .header("User-Agent", userAgent)
+                    if (clientParam != "IOS" && clientParam != "VISIONOS" && clientParam != "ANDROID" && clientParam != "ANDROID_VR") {
+                        newRequestBuilder
+                            .header("Referer", "https://www.youtube.com/")
+                            .header("Origin", "https://www.youtube.com")
+                    }
+                    chain.proceed(newRequestBuilder.build())
+                } else {
+                    chain.proceed(request)
+                }
+            }
+            .build()
+    }
+
+    /**
+     * The main client is used for metadata and initial streams.
+     * IOS currently provides working direct audio streams without bot detection.
+     */
+    val MAIN_CLIENT: YouTubeClient = IOS
 
     /**
      * Clients used for fallback streams in case the streams of the main client do not work.
      */
     val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // Could not parse deobfuscation function
-//        WEB_REMIX,
-//        ANDROID,
-//        TVHTML5,
-//        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        IOS, // recent api changes produce error 403 after 30 seconds
+        ANDROID,
+        ANDROID_VR_NO_AUTH,
+        WEB_REMIX,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
     )
 
     data class PlaybackData(
@@ -110,11 +139,7 @@ object YTPlayerUtils {
 
         val mainPlayerResponse =
             YouTube.player(videoId, playlistId, MAIN_CLIENT, signatureTimestamp, webPlayerPot)
-                .getOrThrow()
-
-        val audioConfig = mainPlayerResponse.playerConfig?.audioConfig
-        val videoDetails = mainPlayerResponse.videoDetails
-        val playbackTracking = mainPlayerResponse.playbackTracking
+                .getOrNull()
 
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
@@ -165,10 +190,10 @@ object YTPlayerUtils {
                     ) ?: continue
                 streamUrl = findUrlOrNull(format, videoId) ?: continue
                 streamExpiresInSeconds =
-                    streamPlayerResponse.streamingData?.expiresInSeconds ?: continue
+                    streamPlayerResponse.streamingData?.expiresInSeconds ?: 14400
 
                 if (client.useWebPoTokens && webStreamingPot != null) {
-                    streamUrl += "&pot=$webStreamingPot";
+                    streamUrl += "&pot=$webStreamingPot"
                 }
 
                 if (clientIndex == STREAM_FALLBACK_CLIENTS.size - 1) {
@@ -190,13 +215,14 @@ object YTPlayerUtils {
         }
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             throw PlaybackException(
-                streamPlayerResponse.playabilityStatus.reason,
+                streamPlayerResponse.playabilityStatus.reason ?: "Unknown playback error",
                 null,
                 PlaybackException.ERROR_CODE_REMOTE_ERROR
             )
         }
         if (streamExpiresInSeconds == null) {
-            throw Exception("Missing stream expire time")
+            Log.w(TAG, "[$videoId] Missing stream expire time, using default")
+            streamExpiresInSeconds = 14400
         }
         if (format == null) {
             throw Exception("Could not find format")
@@ -206,7 +232,14 @@ object YTPlayerUtils {
         }
 
         Log.d(TAG, "[$videoId] stream url: $streamUrl")
-        
+
+        val audioConfig = mainPlayerResponse?.playerConfig?.audioConfig
+            ?: streamPlayerResponse.playerConfig?.audioConfig
+        val videoDetails = mainPlayerResponse?.videoDetails
+            ?: streamPlayerResponse.videoDetails
+        val playbackTracking = mainPlayerResponse?.playbackTracking
+            ?: streamPlayerResponse.playbackTracking
+
         PlaybackData(
             audioConfig,
             videoDetails,
@@ -269,11 +302,31 @@ object YTPlayerUtils {
      */
     fun validateStatus(url: String): Boolean {
         try {
+            val httpUrl = url.toHttpUrlOrNull()
+            val clientParam = httpUrl?.queryParameter("c")
+            val userAgent = when (clientParam) {
+                "IOS" -> YouTubeClient.IOS.userAgent
+                "VISIONOS" -> "com.google.ios.youtube/19.29.1 (Apple Vision Pro; visionOS 1.2; gzip)"
+                "ANDROID_VR" -> YouTubeClient.ANDROID_VR_NO_AUTH.userAgent
+                "ANDROID" -> YouTubeClient.ANDROID.userAgent
+                else -> YouTubeClient.USER_AGENT_WEB
+            }
             val requestBuilder = okhttp3.Request.Builder()
-                .head()
+                .get()
                 .url(url)
+                .addHeader("Range", "bytes=0-1024")
+                .addHeader("User-Agent", userAgent)
+            if (clientParam != "IOS" && clientParam != "VISIONOS" && clientParam != "ANDROID" && clientParam != "ANDROID_VR") {
+                requestBuilder
+                    .addHeader("Referer", "https://www.youtube.com/")
+                    .addHeader("Origin", "https://www.youtube.com")
+            }
+
             val response = httpClient.newCall(requestBuilder.build()).execute()
-            return response.isSuccessful
+            val isSuccess = response.isSuccessful || response.code == 206
+            response.close()
+            Log.d(TAG, "URL validation result: $isSuccess (${response.code})")
+            return isSuccess
         } catch (e: Exception) {
             reportException(e)
         }

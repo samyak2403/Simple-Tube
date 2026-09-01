@@ -66,6 +66,10 @@
 -keep class org.mozilla.classfile.ClassFileWriter
 -dontwarn org.mozilla.javascript.JavaToJSONConverters
 -dontwarn org.mozilla.javascript.tools.**
+-dontwarn org.mozilla.javascript.engine.**
+-dontwarn org.mozilla.javascript.optimizer.**
+-dontwarn javax.script.**
+-dontwarn jdk.dynalink.**
 
 ## Logging (does not affect Timber)
 -assumenosideeffects class android.util.Log {

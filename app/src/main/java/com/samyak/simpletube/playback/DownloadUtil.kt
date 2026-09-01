@@ -55,11 +55,7 @@ class DownloadUtil @Inject constructor(
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
     private val dataSourceFactory = ResolvingDataSource.Factory(
-        OkHttpDataSource.Factory(
-            OkHttpClient.Builder()
-                .proxy(YouTube.proxy)
-                .build()
-        )
+        OkHttpDataSource.Factory(YTPlayerUtils.createPlaybackOkHttpClient())
     ) { dataSpec ->
         val mediaId = dataSpec.key ?: error("No media id")
         if (mediaId.startsWith("LA")) { // downloads are hidden for local songs, this is a last resort

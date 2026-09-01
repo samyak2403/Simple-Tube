@@ -102,7 +102,7 @@
     <string name="scanner_missing_storage_perm">Сканеру требуются разрешения на доступ к хранилищу</string>
     <string name="dev_settings_title">Включить настройки для разработчиков</string>
     <string name="dev_settings_description">Открывает дополнительные настройки, используемые во время разработки</string>
-    <string name="oobe_welcome_message">Добро пожаловать в OuterTune</string>
+    <string name="oobe_welcome_message">Добро пожаловать в SimpleTune</string>
     <string name="oobe_use_backup">У меня есть резервная копия</string>
     <string name="action_back">Назад</string>
     <string name="action_next">Далее</string>
@@ -118,7 +118,7 @@
     <string name="scanner_type_ffmpeg_ext">Использовать экстрактор метаданных FFMpeg. Требуется установка отдельного приложения</string>
     <string name="queue_local_history">История (локальная)</string>
     <string name="queue_remote_history">История (удаленная)</string>
-    <string name="keep_alive_description">Использовать постоянную службу на переднем плане, чтобы предотвратить закрытие OuterTune в фоновом режиме.</string>
+    <string name="keep_alive_description">Использовать постоянную службу на переднем плане, чтобы предотвратить закрытие SimpleTune в фоновом режиме.</string>
     <string name="scanner_type_title">Экстрактор метаданных</string>
     <string name="scanner_variant_rescan">Пересканировать всю библиотеку и обновить метаданные всех треков</string>
     <string name="scanner_online_artist_linking">Попытаться связать исполнителей локальных файлов с исполнителями на YouTube Music</string>

@@ -17,7 +17,7 @@ import kotlin.math.min
 
 /**
  * Unless otherwise stated, this file is From Gramophone as of 9ca721e21a16bbfafdc15b8707b910edc5080c0c
- * This has been adapted for OuterTune
+ * This has been adapted for SimpleTune
  * https://github.com/AkaneTan/Gramophone/blob/beta/app/src/main/kotlin/org/akanework/gramophone/logic/utils/LrcUtils.kt
  */
 object LyricsUtils {
@@ -75,7 +75,7 @@ object LyricsUtils {
         return null
     }
 
-    // OuterTune helper
+    // SimpleTune helper
     @OptIn(UnstableApi::class)
     fun loadAndParseLyricsString(lyrics: String, parserOptions: LrcParserOptions): List<LyricsEntry> {
         return emptyList<LyricsEntry>() + parseLyrics(lyrics, parserOptions).convertForLegacy()
@@ -312,7 +312,7 @@ object LyricsUtils {
         return minutes * 60000 + seconds * 1000 + milliseconds
     }
 
-    // this was from OuterTune
+    // Helper to find current lyric line
     fun findCurrentLineIndex(lines: List<LyricsEntry>, position: Long): Int {
         for (index in lines.indices) {
             if (lines[index].timeStamp >= position + animateScrollDuration) {
@@ -326,7 +326,7 @@ object LyricsUtils {
 
 /**
  * From Gramophone as of 0d46996db54a3360e832ed06bf18170bce85534f
- * This has been adapted for OuterTune
+ * This has been adapted for SimpleTune
  * https://github.com/AkaneTan/Gramophone/blob/beta/app/src/main/kotlin/org/akanework/gramophone/logic/GramophoneExtensions.kt
  */
 inline fun <reified T> MutableList<T>.replaceAllSupport(skipFirst: Int = 0, operator: (T) -> T) {

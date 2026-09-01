@@ -1,4 +1,4 @@
-<!-- These strings are the upstream InnerTune strings. Do not add strings from OuterTune features here.
+<!-- These strings are the upstream InnerTune strings. Do not add strings from downstream custom features here.
 We recycle translations from upstream, they are pulled periodically. -->
 
 <resources>

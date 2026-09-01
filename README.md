@@ -81,7 +81,7 @@ SimpleTube is a supercharged fork of [InnerTune](https://github.com/z-huang/Inne
 Use other music scrobbler apps. I
 recommend [Pano Scrobbler](https://play.google.com/store/apps/details?id=com.arn.scrobble).
 
-### Q: Why OuterTune isn't showing in Android Auto?
+### Q: Why SimpleTune isn't showing in Android Auto?
 
 1. Go to Android Auto's settings and tap multiple times on the version in the bottom to enable
    developer settings
@@ -103,9 +103,6 @@ an awesome base for this fork, none of this would have been possible without it.
 
 [Musicolet](https://play.google.com/store/apps/details?id=in.krosbits.musicolet) for inspiration of a local music player experience done right.
 
-
-## Credits
-I want to give credit to [OuterTune](https://github.com/DD3Boh/OuterTune) for being an example of Jetpack Compose music player. It helped me a lot on my way to learn Compose and Android development.
 
 ## Disclaimer
 

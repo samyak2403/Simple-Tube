@@ -10,7 +10,7 @@ import kotlin.collections.map
 
 /**
  * Unless otherwise stated, this file is From Gramophone as of 9ca721e21a16bbfafdc15b8707b910edc5080c0c
- * This has been adapted for OuterTune
+ * This has been adapted for SimpleTune
  * https://github.com/AkaneTan/Gramophone/blob/beta/app/src/main/kotlin/org/akanework/gramophone/logic/utils/SemanticLyrics.kt
  */
 

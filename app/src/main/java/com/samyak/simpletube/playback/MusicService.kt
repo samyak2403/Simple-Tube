@@ -37,6 +37,7 @@ import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
 import androidx.media3.datasource.cache.SimpleCache
@@ -204,6 +205,7 @@ class MusicService : MediaLibraryService(),
     private var isAudioEffectSessionOpened = false
 
     var consecutivePlaybackErr = 0
+    private val songUrlCache = HashMap<String, Pair<String, Long>>()
 
     override fun onCreate() {
         super.onCreate()
@@ -260,63 +262,62 @@ class MusicService : MediaLibraryService(),
                             return
                         }
 
-                        when (error.errorCode) {
-                            2000 -> {
-                                // Source error (2000) - Sign-in required
-                                player.pause()
+                        var currentCause: Throwable? = error
+                        var isHttp403 = false
+                        while (currentCause != null) {
+                            if ((currentCause as? HttpDataSource.InvalidResponseCodeException)?.responseCode == 403 ||
+                                currentCause.message?.contains("403") == true) {
+                                isHttp403 = true
+                                break
+                            }
+                            currentCause = currentCause.cause
+                        }
+                        val is403OrStreamError = isHttp403
+                                || error.errorCode == 2004
+                                || error.errorCode == 2000
+
+                        if (is403OrStreamError) {
+                            val currentMediaItem = player.currentMediaItem
+                            val mediaId = currentMediaItem?.mediaId
+                            if (mediaId != null) {
+                                songUrlCache.remove(mediaId)
+                            }
+
+                            if (currentMediaItem != null && consecutivePlaybackErr < MAX_CONSECUTIVE_ERR) {
+                                consecutivePlaybackErr++
+
                                 Toast.makeText(
                                     this@MusicService,
-                                    "Sign-in required: ${error.message ?: "This content requires YouTube authentication"}",
-                                    Toast.LENGTH_LONG
+                                    "Stream error, refreshing... ($consecutivePlaybackErr/$MAX_CONSECUTIVE_ERR)",
+                                    Toast.LENGTH_SHORT
                                 ).show()
+
+                                val currentPosition = player.currentPosition
+                                val wasPlaying = player.isPlaying
+
+                                player.removeMediaItem(player.currentMediaItemIndex)
+                                player.addMediaItem(player.currentMediaItemIndex, currentMediaItem)
+                                player.seekTo(player.currentMediaItemIndex, currentPosition)
+
+                                if (wasPlaying) {
+                                    player.prepare()
+                                    player.play()
+                                } else {
+                                    player.prepare()
+                                }
+                                return
+                            } else {
+                                consecutivePlaybackErr = 0
+                                if (dataStore.get(SkipOnErrorKey, true)) {
+                                    skipOnError()
+                                } else {
+                                    stopOnError()
+                                }
                                 return
                             }
-                            2004 -> {
-                                // Error 2004 - I/O unspecified error, usually expired stream URL
-                                // This is a critical error that needs immediate stream refresh
-                                
-                                val currentMediaItem = player.currentMediaItem
-                                if (currentMediaItem != null && consecutivePlaybackErr < 3) {
-                                    consecutivePlaybackErr++
-                                    
-                                    Toast.makeText(
-                                        this@MusicService,
-                                        "Stream expired. Refreshing... (${consecutivePlaybackErr}/3)",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    
-                                    // Force clear the cache and reload with fresh stream
-                                    val currentPosition = player.currentPosition
-                                    val wasPlaying = player.isPlaying
-                                    
-                                    // Remove and re-add the media item to force URL refresh
-                                    player.removeMediaItem(player.currentMediaItemIndex)
-                                    player.addMediaItem(player.currentMediaItemIndex, currentMediaItem)
-                                    player.seekTo(player.currentMediaItemIndex, currentPosition)
-                                    
-                                    if (wasPlaying) {
-                                        player.prepare()
-                                        player.play()
-                                    } else {
-                                        player.prepare()
-                                    }
-                                    return
-                                } else {
-                                    // After 3 retries, skip to next track
-                                    Toast.makeText(
-                                        this@MusicService,
-                                        "Unable to refresh stream. Skipping...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    
-                                    consecutivePlaybackErr = 0
-                                    if (dataStore.get(SkipOnErrorKey, true)) {
-                                        skipOnError()
-                                    } else {
-                                        stopOnError()
-                                    }
-                                }
-                            }
+                        }
+
+                        when (error.errorCode) {
                             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> {
                                 waitOnNetworkError()
                                 return
@@ -342,6 +343,13 @@ class MusicService : MediaLibraryService(),
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
+                        }
+                    }
+
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        super.onPlaybackStateChanged(playbackState)
+                        if (playbackState == Player.STATE_READY) {
+                            consecutivePlaybackErr = 0
                         }
                     }
 
@@ -859,18 +867,13 @@ class MusicService : MediaLibraryService(),
             .setUpstreamDataSourceFactory(
                 DefaultDataSource.Factory(
                     this,
-                    OkHttpDataSource.Factory(
-                        OkHttpClient.Builder()
-                            .proxy(YouTube.proxy)
-                            .build()
-                    )
+                    OkHttpDataSource.Factory(YTPlayerUtils.createPlaybackOkHttpClient())
                 )
             )
             .setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 

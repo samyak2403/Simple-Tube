@@ -55,7 +55,7 @@
     <string name="m3u_import_song_failed">Impossible d\'importer :</string>
     <string name="experimental_settings_title">Expérimental</string>
     <string name="dev_settings_title">Activer les paramètres du développeur</string>
-    <string name="oobe_welcome_message">Bienvenue sur OuterTune</string>
+    <string name="oobe_welcome_message">Bienvenue sur SimpleTune</string>
     <string name="oobe_local_scan_tooltip">Cliquez ici pour rechercher des titres</string>
     <string name="oobe_complete">Installation terminée</string>
     <string name="oobe_ad_free_description">Lecture sans publicité</string>
@@ -85,7 +85,7 @@
     <string name="persistent_queue_desc_ot">Restaurer les précédentes files d\'attente ouvertes au démarrage de l\'application</string>
     <string name="lyrics_multiline_title">Lire les paroles sur plusieurs lignes</string>
     <string name="import_m3u">Importer une playlist (m3u)</string>
-    <string name="keep_alive_description">Utilisez un service de premier plan persistant pour empêcher la fermeture d’OuterTune en arrière-plan.</string>
+    <string name="keep_alive_description">Utilisez un service de premier plan persistant pour empêcher la fermeture de SimpleTune en arrière-plan.</string>
     <string name="lyrics_multiline_description">Traitez toutes les lignes entre les points de synchronisation comme un seul texte lyrique</string>
     <string name="lyrics_trim_title">Supprimer les espaces autour des paroles</string>
     <string name="local_library_enable_description">La désactivation masquera la bibliothèque locale de l\'application</string>

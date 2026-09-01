@@ -94,5 +94,13 @@ data class YouTubeClient(
             userAgent = "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 14; eureka-user Build/UP1A.231005.007) gzip",
             osVersion = "14",
         )
+
+        val ANDROID = YouTubeClient(
+            clientName = "ANDROID",
+            clientVersion = "19.29.35",
+            clientId = "3",
+            userAgent = "com.google.android.youtube/19.29.35 (Linux; U; Android 14) gzip",
+            osVersion = "14",
+        )
     }
 }

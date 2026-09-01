@@ -18,7 +18,7 @@
     <string name="m3u_import_song_failed">Não foi possível importar:</string>
     <string name="scanner_sensitivity_L3">Combinar título, artistas, e álbuns</string>
     <string name="scanner_type_taglib">Usar o extrator de metadados TagLib integrado</string>
-    <string name="oobe_welcome_message">Bem-vindo ao OuterTune</string>
+    <string name="oobe_welcome_message">Bem-vindo ao SimpleTune</string>
     <string name="folders">Pastas</string>
     <string name="local_history">Local</string>
     <string name="remote_history">Remoto</string>
@@ -53,7 +53,7 @@
     <string name="wifi_only">Somente Wi-Fi</string>
     <string name="grp_audio">Áudio</string>
     <string name="keep_alive_title">Evitar encerramento do sistema de apps</string>
-    <string name="keep_alive_description">Usar um serviço de primeiro plano persistente para evitar que o OuterTune seja fechado em segundo plano.</string>
+    <string name="keep_alive_description">Usar um serviço de primeiro plano persistente para evitar que o SimpleTune seja fechado em segundo plano.</string>
     <string name="persistent_queue_desc_ot">Restaurar fila(s) aberta(s) previamente quando o app iniciar</string>
     <string name="min_playback_duration">Duração mínima de reprodução</string>
     <string name="grp_proxy">Proxy</string>

@@ -63,7 +63,7 @@
     <string name="audio_offload">启用卸载</string>
     <string name="audio_offload_description">使用卸载的音频路径进行音频播放。禁用此选项可能会增加功耗，但在遇到音频播放或后处理问题时可能很有用</string>
     <string name="keep_alive_title">防止系统终止应用程序</string>
-    <string name="keep_alive_description">使用持久性前台服务来防止 OuterTune 在后台关闭。</string>
+    <string name="keep_alive_description">使用持久性前台服务来防止 SimpleTune 在后台关闭。</string>
     <string name="persistent_queue_desc_ot">应用程序启动时恢复以前打开的队列</string>
     <string name="min_playback_duration">最短播放时间</string>
     <string name="min_playback_duration_description">一首歌曲在被标记为“播放过”之前，必须播放完</string>
@@ -115,7 +115,7 @@
     <string name="m3u_import_song_failed">无法导入：</string>
     <string name="dev_settings_title">启用开发人员设置</string>
     <string name="dev_settings_description">显示用于开发的其他高级设置</string>
-    <string name="oobe_welcome_message">欢迎来到 OuterTune</string>
+    <string name="oobe_welcome_message">欢迎来到 SimpleTune</string>
     <string name="oobe_complete">设置完成</string>
     <string name="oobe_ytm_content_description">YouTube Music 触手可及</string>
     <string name="oobe_local_playback_description">本地音乐播放</string>

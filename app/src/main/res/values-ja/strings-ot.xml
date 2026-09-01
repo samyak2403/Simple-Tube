@@ -90,7 +90,7 @@
     <string name="token_shown">もう一度タップしてコピーまたは編集します</string>
     <string name="audio_offload">オフロードを有効にする</string>
     <string name="audio_offload_description">オーディオ再生にはオフロードオーディオパスを使用します。これを無効にすると電力消費が増加する可能性がありますが、オーディオ再生や後処理で問題が発生する場合に役立ちます</string>
-    <string name="keep_alive_description">OuterTuneがバックグラウンドで終了されないよう、永続的なフォアグラウンドサービスを使用します。</string>
+    <string name="keep_alive_description">SimpleTuneがバックグラウンドで終了されないよう、永続的なフォアグラウンドサービスを使用します。</string>
     <string name="min_playback_duration">最小の再生時間</string>
     <string name="min_playback_duration_description">曲が\"再生された\"とみなされる前に再生されなければならない最小量</string>
     <string name="scanner_progress_syncing">同期中…</string>
@@ -116,7 +116,7 @@
     <string name="m3u_import_song_failed">インポートできませんでした:</string>
     <string name="dev_settings_title">開発者向け設定を有効にする</string>
     <string name="dev_settings_description">開発用途向けの追加の詳細設定を表示します</string>
-    <string name="oobe_welcome_message">ようこそ、OuterTuneへ</string>
+    <string name="oobe_welcome_message">ようこそ、SimpleTuneへ</string>
     <string name="oobe_complete">セットアップ完了</string>
     <string name="oobe_ytm_content_description">YouTube Music を指先で楽しもう</string>
     <string name="oobe_local_playback_description">ローカルでの音楽再生</string>

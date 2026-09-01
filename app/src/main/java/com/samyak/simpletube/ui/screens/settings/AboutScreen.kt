@@ -151,12 +151,6 @@ fun AboutScreen(
             color = MaterialTheme.colorScheme.secondary
         )
 
-        Text(
-            text = "Davide Garberi for OuterTune",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary
-        )
-
         // debug info
         if (BuildConfig.DEBUG) {
             Spacer(Modifier.height(400.dp))

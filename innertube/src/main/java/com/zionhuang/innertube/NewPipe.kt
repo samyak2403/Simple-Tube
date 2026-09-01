@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.exceptions.ParsingException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager
 import java.io.IOException
 import java.net.Proxy
@@ -71,8 +72,30 @@ object NewPipeUtils {
         YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
     }
 
+    fun getExtractorAudioStreamUrl(videoId: String, itag: Int? = null): Result<String> =
+        runCatching {
+            val extractor = ServiceList.YouTube.getStreamExtractor("https://www.youtube.com/watch?v=$videoId")
+            extractor.fetchPage()
+            val audioStreams = extractor.audioStreams
+            if (audioStreams.isNullOrEmpty()) {
+                throw ParsingException("No audio streams found from extractor")
+            }
+            val stream = if (itag != null) {
+                audioStreams.firstOrNull { it.itag == itag }
+                    ?: audioStreams.maxByOrNull { it.averageBitrate }!!
+            } else {
+                audioStreams.maxByOrNull { it.averageBitrate }!!
+            }
+            stream.content ?: throw ParsingException("Audio stream URL is null")
+        }
+
     fun getStreamUrl(format: PlayerResponse.StreamingData.Format, videoId: String): Result<String> =
         runCatching {
+            // First try to obtain unrestricted progressive stream from NewPipeExtractor to bypass SABR 30-second cutoffs
+            getExtractorAudioStreamUrl(videoId, format.itag).getOrNull()?.let {
+                return@runCatching it
+            }
+
             val url = format.url ?: format.signatureCipher?.let { signatureCipher ->
                 val params = parseQueryString(signatureCipher)
                 val obfuscatedSignature = params["s"]

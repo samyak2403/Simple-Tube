@@ -55,7 +55,7 @@
     <string name="token_shown">Pulsa de nuevo para copiar o editar</string>
     <string name="wifi_only">Sólo Wi-Fi</string>
     <string name="keep_alive_title">Evitar que el sistema mate la aplicación</string>
-    <string name="keep_alive_description">Usar un servicio persistente en primer plano para evitar que OuterTune se cierre en segundo plano.</string>
+    <string name="keep_alive_description">Usar un servicio persistente en primer plano para evitar que SimpleTune se cierre en segundo plano.</string>
     <string name="persistent_queue_desc_ot">Restaurar cola(s) abiertas previamente cuando la aplicación inicia</string>
     <string name="swipe2Queue">Desliza para añadir a la cola</string>
     <string name="swipe2Queue_description">Desliza el dedo sobre una canción para agregarla a la cola inmediatamente después de la canción que se reproduce actualmente</string>
@@ -98,7 +98,7 @@
     <string name="pause_remote_listen_history">Compartir historial de escucha con YouTube Music</string>
     <string name="m3u_import_song_failed">No se pudo importar:</string>
     <string name="dev_settings_title">Habilitar ajustes de desarrolador</string>
-    <string name="oobe_welcome_message">Bienvenido a OuterTune</string>
+    <string name="oobe_welcome_message">Bienvenido a SimpleTune</string>
     <string name="oobe_local_scan_tooltip">Pulsa aquí para escanear canciones</string>
     <string name="oobe_ytm_content_description">YouTube Music a tu alcance</string>
     <string name="oobe_local_playback_description">Reproducción de música local</string>

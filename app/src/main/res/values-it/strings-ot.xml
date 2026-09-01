@@ -95,7 +95,7 @@
     <string name="token_hidden">Premi per mostrare il token</string>
     <string name="playlist_add_local_to_synced_note">Nota: L\'aggiunta di brani locali alle playlist sincronizzate/remote non è supportata. Qualsiasi altra combinazione è valida</string>
     <string name="audio_offload_description">Utilizzare il percorso audio di offload per la riproduzione audio. Disattivarlo potrebbe aumentare il consumo energetico, ma può essere utile se riscontri problemi con la riproduzione audio o la post-elaborazione</string>
-    <string name="keep_alive_description">Utilizzare un servizio persistente in primo piano per evitare che OuterTune venga chiuso in background.</string>
+    <string name="keep_alive_description">Utilizzare un servizio persistente in primo piano per evitare che SimpleTune venga chiuso in background.</string>
     <string name="local_player_settings_title">Media locali</string>
     <string name="tab_arrangement_home_required">La scheda Home è obbligatoria.</string>
     <string name="grp_extra_scanner_settings">Impostazioni aggiuntive dello scanner</string>
@@ -120,7 +120,7 @@
     <string name="scanner_online_artist_linking">Prova a collegare gli artisti dei file locali con quelli su YouTube Music</string>
     <string name="dev_settings_title">Abilita impostazioni sviluppatore</string>
     <string name="dev_settings_description">Rivela impostazioni avanzate aggiuntive destinate all\'uso in fase di sviluppo</string>
-    <string name="oobe_welcome_message">Benvenuto in OuterTune</string>
+    <string name="oobe_welcome_message">Benvenuto in SimpleTune</string>
     <string name="oobe_ytm_content_description">YouTube Music a portata di mano</string>
     <string name="oobe_ytm_sync_description">Sincronizzazione dell\'account</string>
     <string name="oobe_local_playback_description">Riproduzione di musica locale</string>

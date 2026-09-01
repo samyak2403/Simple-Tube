@@ -36,7 +36,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OuterTune"
+        android:theme="@style/Theme.SimpleTune"
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="tiramisu">
         <uses-library
@@ -47,7 +47,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.OuterTune"
+            android:theme="@style/Theme.SimpleTune"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

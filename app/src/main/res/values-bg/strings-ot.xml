@@ -22,7 +22,7 @@
     <string name="err_play_next_on_error">Възникна грешка. Възпроизвежда се следващото</string>
     <string name="scanner_btn_idle">Сканирай</string>
     <string name="scanner_sensitivity_L3">Съпоставете заглавие, изпълнители, албуми</string>
-    <string name="oobe_welcome_message">Добре дошли в OuterTune</string>
+    <string name="oobe_welcome_message">Добре дошли в SimpleTune</string>
     <string name="scanner_type_ffmpeg_ext">Използвайте инструмент за извличане на метаданни FFMpeg. Изисква инсталиране на външен пакет</string>
     <string name="oobe_ad_free_description">Възпроизвеждане без реклами</string>
     <string name="grp_interface">Интерфейс</string>
@@ -39,7 +39,7 @@
     <string name="token_adv_login_description">Това е РАЗШИРЕН метод за влизане. Като алтернатива на уеб портала, можете директно да въведете или актуализирате своя маркер за вход тук. Например, това може да ускори влизането на множество устройства. Моля, обърнете внимание, че всички невалидни формати на токени, които приложението не успява да анализира, няма да бъдат приети</string>
     <string name="wifi_only">Само Wi-Fi</string>
     <string name="audio_offload_description">Използвайте разтоварващия аудио път за аудио възпроизвеждане. Деактивирането на това може да увеличи потреблението на енергия, но може да бъде полезно, ако имате проблеми с аудио възпроизвеждането или последващата обработка</string>
-    <string name="keep_alive_description">Използвайте постоянна услуга на преден план, за да предотвратите затварянето на OuterTune във фонов режим.</string>
+    <string name="keep_alive_description">Използвайте постоянна услуга на преден план, за да предотвратите затварянето на SimpleTune във фонов режим.</string>
     <string name="persistent_queue_desc_ot">Възстановяване на предишни отворени опашки при стартиране на приложението</string>
     <string name="min_playback_duration">Минимална продължителност на възпроизвеждане</string>
     <string name="flat_subfolders_description">Деактивирайте, за да запазите файловата структура като на диска</string>
