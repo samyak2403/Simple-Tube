@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import java.net.URLDecoder
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -576,9 +577,8 @@ class MainActivity : ComponentActivity() {
                             if (youtubeNavigator(it.toUri())) {
                                 // don't do anything
                             } else {
-                                // Use urlEncode() but it will be decoded in ViewModel
-                                // This maintains URL safety while allowing spaces in search
-                                navController.navigate("search/${it.urlEncode()}")
+                                // Use Uri.encode() for URL safety while maintaining space decoding in Navigation
+                                navController.navigate("search/${Uri.encode(it)}")
                                 if (dataStore[PauseSearchHistoryKey] != true) {
                                     database.query {
                                         insert(SearchHistory(query = it))
@@ -649,8 +649,13 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(navBackStackEntry) {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
-                            val searchQuery = withContext(Dispatchers.IO) {
-                                navBackStackEntry?.arguments?.getString("query")!!
+                            val rawQuery = withContext(Dispatchers.IO) {
+                                navBackStackEntry?.arguments?.getString("query").orEmpty()
+                            }
+                            val searchQuery = try {
+                                URLDecoder.decode(rawQuery, "UTF-8")
+                            } catch (_: Exception) {
+                                Uri.decode(rawQuery)
                             }
                             onQueryChange(TextFieldValue(searchQuery, TextRange(searchQuery.length)))
                         } else if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }) {
@@ -858,7 +863,7 @@ class MainActivity : ComponentActivity() {
                                                         if (youtubeNavigator(it.toUri())) {
                                                             return@OnlineSearchScreen
                                                         } else {
-                                                            navController.navigate("search/${it.urlEncode()}")
+                                                            navController.navigate("search/${Uri.encode(it)}")
                                                             if (dataStore[PauseSearchHistoryKey] != true) {
                                                                 database.query {
                                                                     insert(SearchHistory(query = it))

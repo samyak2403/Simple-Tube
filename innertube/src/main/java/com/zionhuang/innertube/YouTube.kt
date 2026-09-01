@@ -116,46 +116,70 @@ object YouTube {
 
     suspend fun searchSummary(query: String): Result<SearchSummaryPage> = runCatching {
         val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
-        SearchSummaryPage(
-            summaries = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.mapNotNull { it ->
-                if (it.musicCardShelfRenderer != null)
-                    SearchSummary(
-                        title = it.musicCardShelfRenderer.header.musicCardShelfHeaderBasicRenderer.title.runs?.firstOrNull()?.text ?: return@mapNotNull null,
-                        items = listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(it.musicCardShelfRenderer))
-                            .plus(
-                                it.musicCardShelfRenderer.contents
-                                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
-                                    .orEmpty()
-                            )
-                            .distinctBy { it.id }
-                            .ifEmpty { null } ?: return@mapNotNull null
+        val contents = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents
+        val summaries = mutableListOf<SearchSummary>()
+
+        contents?.forEach { content ->
+            if (content.musicCardShelfRenderer != null) {
+                val cardItem = SearchSummaryPage.fromMusicCardShelfRenderer(content.musicCardShelfRenderer)
+                val nestedItems = content.musicCardShelfRenderer.contents
+                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
+                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
+                    .orEmpty()
+                val allItems = listOfNotNull(cardItem).plus(nestedItems).distinctBy { it.id }
+                if (allItems.isNotEmpty()) {
+                    summaries.add(
+                        SearchSummary(
+                            title = content.musicCardShelfRenderer.header?.musicCardShelfHeaderBasicRenderer?.title?.runs?.firstOrNull()?.text
+                                ?: content.musicCardShelfRenderer.title?.runs?.firstOrNull()?.text
+                                ?: "Top result",
+                            items = allItems
+                        )
                     )
-                else
-                    SearchSummary(
-                        title = it.musicShelfRenderer?.title?.runs?.firstOrNull()?.text ?: return@mapNotNull null,
-                        items = it.musicShelfRenderer.contents?.getItems()
-                            ?.mapNotNull {
-                                SearchSummaryPage.fromMusicResponsiveListItemRenderer(it)
-                            }
-                            ?.distinctBy { it.id }
-                            ?.ifEmpty { null } ?: return@mapNotNull null
-                    )
-            }!!
-        )
+                }
+            } else if (content.musicShelfRenderer != null) {
+                val title = content.musicShelfRenderer.title?.runs?.firstOrNull()?.text
+                val items = content.musicShelfRenderer.contents?.getItems()
+                    ?.mapNotNull { SearchSummaryPage.fromMusicResponsiveListItemRenderer(it) }
+                    ?.distinctBy { it.id }
+                    .orEmpty()
+                if (title != null && items.isNotEmpty()) {
+                    summaries.add(SearchSummary(title = title, items = items))
+                }
+            }
+        }
+
+        // Also extract items from itemSectionRenderers (individual search results sent in item sections)
+        val itemSectionItems = contents?.mapNotNull { it.itemSectionRenderer }
+            ?.flatMap { it.contents.orEmpty() }
+            ?.mapNotNull { it.musicResponsiveListItemRenderer }
+            ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
+            ?.distinctBy { it.id }
+            .orEmpty()
+
+        if (itemSectionItems.isNotEmpty()) {
+            summaries.add(
+                SearchSummary(
+                    title = "Songs",
+                    items = itemSectionItems
+                )
+            )
+        }
+
+        SearchSummaryPage(summaries = summaries)
     }
 
     suspend fun search(query: String, filter: SearchFilter): Result<SearchResult> = runCatching {
         val response = innerTube.search(WEB_REMIX, query, filter.value).body<SearchResponse>()
+        val contents = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents
+        val shelfRenderer = contents?.lastOrNull { it.musicShelfRenderer != null }?.musicShelfRenderer
+            ?: contents?.lastOrNull()?.musicShelfRenderer
         SearchResult(
-            items = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
-                ?.tabRenderer?.content?.sectionListRenderer?.contents?.lastOrNull()
-                ?.musicShelfRenderer?.contents?.getItems()?.mapNotNull {
-                    SearchPage.toYTItem(it)
-                }.orEmpty(),
-            continuation = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
-                ?.tabRenderer?.content?.sectionListRenderer?.contents?.lastOrNull()
-                ?.musicShelfRenderer?.contents?.getContinuation()
+            items = shelfRenderer?.contents?.getItems()?.mapNotNull {
+                SearchPage.toYTItem(it)
+            }.orEmpty(),
+            continuation = shelfRenderer?.contents?.getContinuation()
         )
     }
 
@@ -165,8 +189,8 @@ object YouTube {
             items = response.continuationContents?.musicShelfContinuation?.contents
                 ?.mapNotNull {
                     SearchPage.toYTItem(it.musicResponsiveListItemRenderer)
-                }!!,
-            continuation = response.continuationContents.musicShelfContinuation.continuations?.getContinuation()
+                }.orEmpty(),
+            continuation = response.continuationContents?.musicShelfContinuation?.continuations?.getContinuation()
         )
     }
 

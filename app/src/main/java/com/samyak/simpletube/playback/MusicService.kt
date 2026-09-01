@@ -496,10 +496,14 @@ class MusicService : MediaLibraryService(),
             .setNotificationListener(object : PlayerNotificationManager.NotificationListener {
                 override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
                     fun startFg() {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            startForeground(notificationId, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                        } else {
-                            startForeground(notificationId, notification)
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                startForeground(notificationId, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                            } else {
+                                startForeground(notificationId, notification)
+                            }
+                        } catch (e: Exception) {
+                            Timber.tag("MusicService").e(e, "Failed to start foreground")
                         }
                     }
 
@@ -511,8 +515,23 @@ class MusicService : MediaLibraryService(),
                         if (player.isPlaying) {
                             startFg()
                         } else {
-                            stopForeground(notificationId)
+                            try {
+                                stopForeground(STOP_FOREGROUND_DETACH)
+                            } catch (e: Exception) {
+                                Timber.tag("MusicService").e(e, "Failed to stop foreground")
+                            }
                         }
+                    }
+                }
+
+                override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
+                    try {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                    } catch (e: Exception) {
+                        Timber.tag("MusicService").e(e, "Failed to stop foreground on notification cancel")
+                    }
+                    if (dismissedByUser) {
+                        stopSelf()
                     }
                 }
             })
@@ -772,24 +791,32 @@ class MusicService : MediaLibraryService(),
     private fun openAudioEffectSession() {
         if (isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = true
-        sendBroadcast(
-            Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
-                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-                putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-            }
-        )
+        try {
+            sendBroadcast(
+                Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                    putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                }
+            )
+        } catch (e: Exception) {
+            Timber.tag("MusicService").e(e, "Failed to open audio effect session")
+        }
     }
 
     private fun closeAudioEffectSession() {
         if (!isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = false
-        sendBroadcast(
-            Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
-                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
-                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
-            }
-        )
+        try {
+            sendBroadcast(
+                Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
+                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                }
+            )
+        } catch (e: Exception) {
+            Timber.tag("MusicService").e(e, "Failed to close audio effect session")
+        }
     }
 
     override fun onPlaybackStateChanged(@Player.State playbackState: Int) {
@@ -998,7 +1025,8 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onPlaybackStatsReady(eventTime: AnalyticsListener.EventTime, playbackStats: PlaybackStats) {
-        val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
+        if (eventTime.timeline.isEmpty || eventTime.windowIndex < 0 || eventTime.windowIndex >= eventTime.timeline.windowCount) return
+        val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem ?: return
         var minPlaybackDur = (dataStore.get(minPlaybackDurKey, 30).toFloat() / 100)
         // ensure within bounds
         if (minPlaybackDur >= 1f) {

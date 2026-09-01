@@ -14,6 +14,7 @@ import com.samyak.simpletube.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import android.net.Uri
 import java.net.URLDecoder
 import javax.inject.Inject
 
@@ -21,47 +22,58 @@ import javax.inject.Inject
 class OnlineSearchViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    // Decode URL-encoded query (e.g., "mama+chi+porgi" → "mama chi porgi")
-    val query = URLDecoder.decode(savedStateHandle.get<String>("query")!!, "UTF-8")
+    val query = try {
+        URLDecoder.decode(savedStateHandle.get<String>("query").orEmpty(), "UTF-8")
+    } catch (_: Exception) {
+        Uri.decode(savedStateHandle.get<String>("query").orEmpty())
+    }
     val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
+    var isSummaryLoading by mutableStateOf(true)
+    var isSummaryError by mutableStateOf(false)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
 
     init {
-        // Load search results immediately on initialization
-        viewModelScope.launch {
-            // Load summary (ALL filter) immediately
-            YouTube.searchSummary(query)
-                .onSuccess {
-                    summaryPage = it
-                }
-                .onFailure {
-                    reportException(it)
-                    // Don't set empty summary - keep it null to show error state properly
-                    // The UI will handle null state differently than empty state
-                }
-        }
+        loadSummary()
         
         // Listen for filter changes
         viewModelScope.launch {
             filter.collect { filter ->
-                if (filter == null) {
-                    // Already loaded in init above
-                } else {
-                    if (viewStateMap[filter.value] == null) {
-                        YouTube.search(query, filter)
-                            .onSuccess { result ->
-                                viewStateMap[filter.value] = ItemsPage(result.items.distinctBy { it.id }, result.continuation)
-                            }
-                            .onFailure {
-                                reportException(it)
-                                // Set empty results to stop shimmer
-                                viewStateMap[filter.value] = ItemsPage(emptyList(), null)
-                            }
-                    }
+                if (filter != null && viewStateMap[filter.value] == null) {
+                    YouTube.search(query, filter)
+                        .onSuccess { result ->
+                            viewStateMap[filter.value] = ItemsPage(result.items.distinctBy { it.id }, result.continuation)
+                        }
+                        .onFailure {
+                            reportException(it)
+                            // Set empty results to stop shimmer
+                            viewStateMap[filter.value] = ItemsPage(emptyList(), null)
+                        }
                 }
             }
         }
+    }
+
+    fun loadSummary() {
+        viewModelScope.launch {
+            isSummaryLoading = true
+            isSummaryError = false
+            YouTube.searchSummary(query)
+                .onSuccess {
+                    summaryPage = it
+                    isSummaryLoading = false
+                    isSummaryError = false
+                }
+                .onFailure {
+                    reportException(it)
+                    isSummaryLoading = false
+                    isSummaryError = true
+                }
+        }
+    }
+
+    fun retrySummary() {
+        loadSummary()
     }
 
     fun loadMore() {

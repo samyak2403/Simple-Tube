@@ -232,11 +232,21 @@ fun OnlineSearchResult(
             }
 
             // Only show "no results" if we have a summary but ALL sections are empty
-            if (searchSummary != null && searchSummary.summaries.all { it.items.isEmpty() }) {
+            if (searchSummary != null && (searchSummary.summaries.isEmpty() || searchSummary.summaries.all { it.items.isEmpty() })) {
                 item {
                     EmptyPlaceholder(
                         icon = Icons.Rounded.Search,
                         text = stringResource(R.string.no_results_found),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            }
+
+            if (viewModel.isSummaryError) {
+                item {
+                    EmptyPlaceholder(
+                        icon = Icons.Rounded.Search,
+                        text = stringResource(R.string.error_no_internet),
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -270,7 +280,9 @@ fun OnlineSearchResult(
             }
         }
 
-        if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
+        val showSummaryShimmer = searchFilter == null && searchSummary == null && viewModel.isSummaryLoading && !viewModel.isSummaryError
+        val showFilterShimmer = searchFilter != null && itemsPage == null
+        if (showSummaryShimmer || showFilterShimmer) {
             item {
                 ShimmerHost {
                     repeat(8) {
