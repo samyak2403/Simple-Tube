@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 2,
-      "versionName": "0.2.0",
-      "outputFile": "SimpleTune-0.2.0-universal-release.apk"
+      "versionCode": 6,
+      "versionName": "0.2.2.2",
+      "outputFile": "SimpleTune-0.2.2.2-universal-release.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/SimpleTune-0.2.0-universal-release.dm"
+        "baselineProfiles/1/SimpleTune-0.2.2.2-universal-release.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/SimpleTune-0.2.0-universal-release.dm"
+        "baselineProfiles/0/SimpleTune-0.2.2.2-universal-release.dm"
       ]
     }
   ],
